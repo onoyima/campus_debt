@@ -1,0 +1,39 @@
+# Campus Connect Pro (reference UI — not part of this project)
+campus-connect-pro-main/
+
+# Laravel
+/vendor/
+node_modules/
+npm-debug.log
+yarn-error.log
+
+# Environment
+.env
+.env.*.local
+.env.production
+
+# Logs
+/storage/logs/*
+/storage/framework/cache/data/*
+/storage/framework/sessions/*
+/storage/framework/views/*
+/storage/app/backup/*
+!storage/app/backup/.gitignore
+
+# IDE
+.idea/
+.vscode/
+*.sublime-project
+*.sublime-workspace
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Build
+/public/build/
+/public/hot
+/public/storage
+
+# PHPUnit
+/.phpunit.result.cache

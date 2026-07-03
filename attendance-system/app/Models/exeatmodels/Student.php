@@ -1,0 +1,113 @@
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Foundation\Auth\User as Authenticatable;
+use Laravel\Sanctum\HasApiTokens;
+
+class Student extends Authenticatable
+{
+    use HasApiTokens, HasFactory;
+
+    protected $table = 'students';
+
+    protected $fillable = [
+        'user_id',
+        'user_type',
+        'student_role_id',
+        'email',
+        'password',
+        'title_id',
+        'lname',
+        'fname',
+        'mname',
+        'gender',
+        'dob',
+        'country_id',
+        'state_id',
+        'lga_name',
+        'city',
+        'religion',
+        'marital_status',
+        'address',
+        'phone',
+        'username',
+        'passport',
+        'signature',
+        'hobbies',
+        'email_verified_at',
+        'status',
+        'remember_token',
+        'created_at',
+        'updated_at',
+    ];
+
+    public function academics()
+    {
+        return $this->hasMany(StudentAcademic::class, 'student_id');
+    }
+
+    public function academic()
+    {
+        return $this->hasOne(StudentAcademic::class, 'student_id')->latest();
+    }
+
+      public function course_regs()
+    {
+        return $this->hasMany(CourseReg::class);
+    }
+
+     public function student_academic()
+    {
+        return $this->hasOne(StudentAcademic::class);
+    }
+    public function contacts()
+    {
+        return $this->hasMany(StudentContact::class, 'student_id');
+    }
+    public function country()
+    {
+        return $this->belongsTo(Country::class);
+    }
+
+    public function state()
+    {
+        return $this->belongsTo(State::class);
+    }
+    // Existing relationship
+    public function medicals()
+    {
+        return $this->hasMany(StudentMedical::class, 'student_id');
+    }
+
+
+
+    public function roleUsers()
+    {
+        return $this->hasMany(StudentRoleUser::class, 'user_id');
+    }
+
+    public function accomodationHistories()
+    {
+        return $this->hasMany(VunaAccomodationHistory::class, 'student_id');
+    }
+
+    public function exeatRequests()
+    {
+        return $this->hasMany(ExeatRequest::class, 'student_id');
+    }
+
+    public function notifications()
+    {
+        return $this->morphMany(ExeatNotification::class, 'recipient');
+    }
+
+    /**
+     * Get the debts associated with the student.
+     */
+    public function debts()
+    {
+        return $this->hasMany(StudentExeatDebt::class, 'student_id');
+    }
+}

@@ -1,0 +1,1415 @@
+Plan
+Section 1
+Integrated Institutional Attendance, Presence Verification and Examination Movement Management System
+
+Executive Summary
+
+This project aims to develop a comprehensive institutional attendance and presence verification platform that serves students, academic staff, non-academic staff, faculty administrators, and institutional management.
+
+The platform will provide secure, location-aware, biometric attendance verification for:
+
+	•	Classroom Attendance
+	•	Seminar Attendance
+	•	Chapel/Mass Attendance
+	•	Staff Attendance
+	•	Special Institutional Events
+	•	Examination Leave and Movement Tracking
+
+The system shall eliminate attendance fraud, proxy attendance, location spoofing, and unauthorized attendance submissions while maintaining a seamless experience for users.
+
+The solution shall operate through:
+
+	1.	Dedicated Attendance Terminals installed at approved venues.
+	2.	Mobile Applications for Students and Staff.
+	3.	Web Administration Portal.
+	4.	Central Laravel-Based Backend Services.
+	5.	Offline Synchronization Capabilities.
+	6.	Facial Recognition and Fingerprint Verification.
+	7.	Venue Authentication Infrastructure.
+
+The system must remain operational even when internet connectivity is unavailable.
+
+⸻
+
+Project Objectives
+
+The system shall ensure:
+
+Identity Verification
+
+Only the actual registered student or staff member can submit attendance.
+
+Venue Verification
+
+Attendance can only be submitted from approved locations.
+
+Time Verification
+
+Attendance can only be submitted during approved attendance windows.
+
+Event Verification
+
+Attendance must correspond to a scheduled class, seminar, mass, staff duty, or institutional event.
+
+Anti-Proxy Enforcement
+
+No individual shall be able to submit attendance on behalf of another person except authorized personnel through approved override mechanisms.
+
+Offline Availability
+
+Attendance activities must continue during network outages and synchronize automatically when connectivity is restored.
+
+⸻
+
+Core System Modules
+
+Module 1: Classroom Attendance Management
+
+Description
+
+Attendance for scheduled academic classes.
+
+Attendance Rules
+
+The student must:
+
+	•	Belong to the course.
+	•	Be enrolled in the class.
+	•	Be physically present at the venue.
+	•	Attend during the approved attendance period.
+
+Attendance Methods
+
+Mobile Application
+
+Student:
+
+	•	Opens attendance app.
+	•	Completes facial verification.
+	•	Receives venue authorization.
+	•	Attendance is recorded.
+
+Attendance Terminal
+
+Student:
+
+	•	Uses facial recognition.
+	•	Or fingerprint verification.
+	•	Attendance is recorded.
+
+Lecturer Functions
+
+Lecturer can:
+
+	•	Open attendance session.
+	•	Close attendance session.
+	•	Extend attendance window.
+	•	Approve proxy attendance.
+	•	Mark excused attendance.
+	•	View attendance statistics.
+	•	Export reports.
+
+⸻
+
+Module 2: Seminar Attendance Management
+
+Description
+
+Supports attendance for:
+
+	•	Department Seminars
+	•	Faculty Seminars
+	•	School-Wide Programs
+	•	Conferences
+	•	Workshops
+
+Features
+
+	•	Event registration
+	•	Attendance tracking
+	•	Venue verification
+	•	Attendance analytics
+	•	Participant verification
+
+Attendance can be taken through:
+
+	•	Attendance terminals
+	•	Mobile applications
+
+⸻
+
+Module 3: Staff Attendance Management
+
+Description
+
+Tracks staff presence.
+
+Attendance Types
+
+Clock-In
+
+Morning attendance.
+
+Clock-Out
+
+End-of-day attendance.
+
+Verification
+
+	•	Face Recognition
+	•	Fingerprint Verification
+
+Venue Restriction
+
+Attendance only valid from assigned staff office locations.
+
+⸻
+
+Module 4: Chapel and Mass Attendance
+
+Description
+
+Attendance tracking for institutional worship programs.
+
+Rules
+
+Attendance eligibility determined by:
+
+	•	Faculty
+	•	Department
+	•	Academic Level
+	•	Assigned Day
+
+Example
+
+Faculty of Science:
+
+Wednesday
+
+Venue:
+
+Institutional Chapel
+
+Only eligible users can record attendance.
+
+⸻
+
+Module 5: Special Event Attendance
+
+Supports:
+
+	•	Convocations
+	•	Orientation Programs
+	•	Department Meetings
+	•	Institutional Ceremonies
+
+Uses the same verification architecture as all other attendance modules.
+
+⸻
+
+Module 6: Examination Leave and Movement Management
+
+Overview
+
+This module manages approved student movements during academic periods.
+
+Use Case
+
+Student requests permission to leave campus for examination-related activities.
+
+Examples:
+
+	•	Professional Examinations
+	•	External Certification Examinations
+	•	Government Examinations
+	•	Approved Academic Activities
+
+⸻
+
+Workflow
+
+Step 1
+
+Student submits examination leave request.
+
+Step 2
+
+Request is reviewed.
+
+Step 3
+
+Institution approves request.
+
+Step 4
+
+Student leaves campus.
+
+Step 5
+
+System records leave period.
+
+⸻
+
+Attendance Integration
+
+This is a critical feature.
+
+During approved examination periods:
+
+The student shall not be marked:
+
+	•	Present
+	•	Absent
+	•	Late
+
+Instead attendance status shall become:
+
+Examination Leave
+
+Example:
+
+Class:
+
+CSC 402
+
+Date:
+
+15 June
+
+Student:
+
+John Doe
+
+Status:
+
+EXAMINATION LEAVE
+
+This attendance record:
+
+	•	Does not reduce attendance percentage.
+	•	Does not count as absence.
+	•	Does not count as presence.
+	•	Appears in reports.
+
+⸻
+
+Attendance Status Types
+
+The system shall support:
+
+	•	Present
+	•	Late
+	•	Absent
+	•	Excused
+	•	Proxy
+	•	Examination Leave
+	•	Official Assignment
+	•	Medical Leave
+
+⸻
+
+Venue Authentication Infrastructure
+
+Purpose
+
+To prove physical presence.
+
+⸻
+
+Attendance Terminal
+
+Each venue receives a dedicated attendance terminal.
+
+Examples:
+
+	•	LT1
+	•	LT2
+	•	LT3
+	•	Seminar Hall
+	•	Chapel
+	•	Staff Office
+
+Each terminal has:
+
+	•	Unique Device ID
+	•	Device Certificate
+	•	Venue Assignment
+
+Example:
+
+Venue:
+LT2
+
+Device:
+LT2_ATTENDANCE_01
+
+⸻
+
+Venue Authorization
+
+Attendance is only valid when:
+
+	•	User is authenticated.
+	•	Venue is authenticated.
+	•	Event is active.
+
+The venue terminal acts as the trusted location authority.
+
+⸻
+
+Attendance Terminal Specifications
+
+Hardware
+
+Minimum Components
+
+	•	Camera
+	•	Fingerprint Scanner
+	•	Touchscreen
+	•	Local Storage
+	•	WiFi/Ethernet
+	•	Secure Device Certificate
+
+Operating System
+
+Recommended:
+
+Android
+
+or
+
+Linux
+
+⸻
+
+Mobile Application
+
+Student Functions
+
+	•	Facial Attendance
+	•	Timetable Viewing
+	•	Attendance History
+	•	Notifications
+	•	Examination Leave Requests
+	•	Attendance Analytics
+
+Staff Functions
+
+	•	Attendance Submission
+	•	Attendance Monitoring
+	•	Event Management
+	•	Attendance Reports
+
+⸻
+
+Facial Recognition Engine
+
+Enrollment
+
+Face captured during registration.
+
+Template stored securely.
+
+Verification
+
+During attendance:
+
+	•	Live face captured.
+	•	Liveness detection performed.
+	•	Facial template compared.
+
+Anti-Spoof Measures
+
+Reject:
+
+	•	Printed Photos
+	•	Screenshots
+	•	Video Replays
+	•	Static Images
+
+⸻
+
+Fingerprint Verification
+
+Used primarily:
+
+	•	On attendance terminals
+	•	As fallback mechanism
+
+Supports:
+
+	•	Students
+	•	Staff
+
+⸻
+
+Offline-First Architecture
+
+Requirement
+
+Attendance must not stop because internet is unavailable.
+
+Local Storage
+
+Attendance terminals maintain:
+
+	•	Attendance queue
+	•	User templates
+	•	Venue data
+	•	Timetable cache
+
+Synchronization
+
+When internet returns:
+
+	•	Attendance records sync automatically.
+	•	Conflict resolution executes.
+	•	Audit logs synchronize.
+
+⸻
+
+Security Architecture
+
+Identity Security
+
+	•	Facial Recognition
+	•	Fingerprint Verification
+	•	User Authentication
+
+Venue Security
+
+	•	Venue Certificates
+	•	Device Authentication
+	•	Signed Venue Authorization
+
+Attendance Security
+
+	•	Audit Trails
+	•	Immutable Logs
+	•	Attendance History
+
+Administrative Security
+
+Role-based access control.
+
+Roles include:
+
+	•	Super Administrator
+	•	Faculty Administrator
+	•	Department Administrator
+	•	Lecturer
+	•	Staff
+	•	Student
+
+⸻
+
+Audit and Compliance
+
+Every attendance action records:
+
+	•	User
+	•	Time
+	•	Device
+	•	Venue
+	•	Attendance Type
+	•	Verification Method
+
+Examples:
+
+Present
+
+Late
+
+Proxy
+
+Examination Leave
+
+Manual Override
+
+⸻
+
+Reporting Module
+
+Reports available by:
+
+	•	Student
+	•	Course
+	•	Department
+	•	Faculty
+	•	Staff Unit
+	•	Event
+	•	Semester
+	•	Academic Session
+
+Exports:
+
+	•	PDF
+	•	Excel
+	•	CSV
+
+⸻
+
+Recommended Technology Stack
+
+Backend
+
+Laravel
+
+Database
+
+PostgreSQL
+
+Cache
+
+Redis
+
+Queue Processing
+
+Laravel Queues
+
+Mobile
+
+React Native
+
+Admin Portal
+
+React
+
+Terminal Software
+
+Android Application
+
+Authentication
+
+JWT
+
+Storage
+
+Object Storage for Images and Logs
+
+⸻
+
+Expected Benefits
+
+The proposed system will:
+
+	•	Eliminate attendance fraud.
+	•	Prevent proxy attendance.
+	•	Verify physical venue presence.
+	•	Support mobile and terminal attendance.
+	•	Operate during internet outages.
+	•	Integrate examination leave management.
+	•	Provide comprehensive reporting.
+	•	Support future institutional expansion.
+
+The solution establishes a single unified attendance ecosystem for students, staff, academic activities, worship activities, seminars, examinations, and institutional events.
+
+
+
+Section 2
+
+Module 8: Institutional Debt Recovery and Financial Compliance Management
+
+Description
+
+The system shall include a comprehensive Debt Recovery Management module responsible for monitoring, accumulating, enforcing, and recovering all financial penalties and outstanding institutional obligations for students.
+
+Rather than treating attendance as an isolated activity, every attendance-related penalty shall automatically become part of the student’s institutional financial record.
+
+The module shall integrate seamlessly with:
+
+	•	School Fees Management
+	•	Exeat Management
+	•	Attendance Management
+	•	Chapel/Mass Attendance
+	•	Examination Clearance
+	•	Electronic Examination Card
+	•	Student Notification System
+
+⸻
+
+Automatic Debt Generation
+
+The system shall automatically generate debts whenever a student violates institutional policies that attract financial penalties.
+
+Examples include:
+
+	•	Missing compulsory chapel or mass
+	•	Missing compulsory institutional events
+	•	Missing departmental seminars
+	•	Late attendance penalties
+	•	Exeat violations
+	•	Other institution-defined penalty events
+
+Each debt record shall contain:
+
+	•	Student ID
+	•	Student Name
+	•	Department
+	•	Faculty
+	•	Session
+	•	Semester
+	•	Event
+	•	Date
+	•	Reason for Penalty
+	•	Amount
+	•	Due Date
+	•	Payment Status
+	•	Clearance Status
+
+Every generated debt shall immediately appear in the student’s financial dashboard.
+
+⸻
+
+Debt Accumulation
+
+The system shall maintain a cumulative debt ledger for every student.
+
+Instead of viewing debts individually, the platform shall continuously calculate:
+
+	•	Total Outstanding Debt
+	•	Paid Debt
+	•	Pending Debt
+	•	Overdue Debt
+	•	Historical Debt Records
+
+This cumulative balance shall be used throughout the institution whenever eligibility decisions are made.
+
+⸻
+
+Module 9: Debt Recovery Department Portal
+
+Description
+
+A dedicated portal shall be provided for the Debt Recovery Unit.
+
+The portal shall allow authorized officers to:
+
+	•	View students with outstanding debts
+	•	Monitor payment status
+	•	Generate debt reports
+	•	Verify payments
+	•	Approve debt clearance
+	•	Print debt reports
+	•	Export reports to Excel and PDF
+	•	View departmental debt statistics
+	•	View faculty debt statistics
+	•	Track debt recovery performance
+
+The dashboard shall provide real-time analytics including:
+
+	•	Total Outstanding Institutional Debt
+	•	Total Amount Recovered
+	•	Students Owing
+	•	Cleared Students
+	•	Outstanding Debts by Department
+	•	Outstanding Debts by Faculty
+	•	Outstanding Debts by Event Type
+
+⸻
+
+Module 10: Quality Assurance (QA) Management
+
+Description
+
+The Quality Assurance Unit shall oversee attendance compliance for both students and staff.
+
+The system shall automatically generate institutional compliance reports without requiring manual compilation.
+
+QA officers shall be able to:
+
+	•	View attendance compliance
+	•	Monitor attendance trends
+	•	View departmental statistics
+	•	Monitor lecturer attendance
+	•	Monitor staff attendance
+	•	Track chapel attendance
+	•	Track seminar attendance
+	•	Track institutional event attendance
+	•	Generate compliance reports
+	•	Export reports
+
+⸻
+
+Staff Compliance Reporting
+
+For staff-related attendance events, the system shall automatically identify staff members who failed to attend mandatory activities.
+
+Examples include:
+
+	•	Staff meetings
+	•	Senate meetings
+	•	Workshops
+	•	Institutional seminars
+	•	Departmental meetings
+	•	Official ceremonies
+	•	Other mandatory events
+
+Automatically generated reports shall be forwarded to:
+
+	•	Quality Assurance
+	•	Bursary
+	•	Human Resources (Optional)
+
+These reports shall support payroll processing and salary deductions according to institutional policy.
+
+⸻
+
+Module 11: Bursary Integration
+
+The Bursary module shall automatically receive attendance-related financial reports generated by the system.
+
+Examples include:
+
+	•	Staff salary deductions
+	•	Student attendance penalties
+	•	Institutional fines
+	•	Outstanding attendance debts
+
+The system shall eliminate manual preparation of deduction schedules.
+
+⸻
+
+Module 12: Exeat Financial Compliance
+
+The Exeat Management System shall be tightly integrated with the Debt Recovery Module.
+
+Before any student submits an exeat request, the system shall automatically verify:
+
+	•	Outstanding school fees
+	•	Attendance penalties
+	•	Chapel debts
+	•	Seminar debts
+	•	Institutional event debts
+	•	Previous exeat debts
+	•	Any other outstanding institutional debt
+
+If outstanding debts exist:
+
+	•	The exeat request shall be automatically blocked.
+	•	The student shall receive a notification detailing the outstanding obligations.
+	•	Exeat approval shall only proceed after debt settlement.
+
+⸻
+
+Module 13: Examination Eligibility Engine
+
+Description
+
+The platform shall automatically determine examination eligibility for every registered course without requiring manual verification.
+
+Eligibility shall be evaluated continuously throughout the semester.
+
+The Examination Eligibility Engine shall assess:
+
+Financial Requirements
+
+	•	School fees payment status
+	•	Attendance-related debts
+	•	Chapel penalties
+	•	Seminar penalties
+	•	Institutional event penalties
+	•	Exeat-related debts
+	•	Other institutional debts
+
+Academic Requirements
+
+	•	Minimum 80% class attendance per course
+	•	Registered courses
+	•	Approved course registration
+	•	Faculty-specific requirements
+
+Approved Exeat Consideration
+
+Where a student has an officially approved exeat that overlaps with scheduled classes, those absences shall be marked as excused and shall count toward attendance eligibility rather than being treated as unexcused absences.
+
+This ensures students are not unfairly penalized for institutionally approved leave.
+
+⸻
+
+Module 14: Electronic Examination Clearance
+
+The institution shall replace manual examination cards with a fully digital examination clearance system.
+
+The system shall continuously evaluate each student’s eligibility for every registered course.
+
+Each course shall display one of the following statuses:
+
+	•	Qualified
+	•	Pending Clearance
+	•	Attendance Deficiency
+	•	Outstanding Debt
+	•	Not Eligible
+
+Students shall be able to monitor their examination readiness from the first week of the semester until examinations commence.
+
+⸻
+
+Student Examination Dashboard
+
+Students shall have access to a dashboard showing:
+
+	•	Registered Courses
+	•	Attendance Percentage per Course
+	•	Required Attendance Percentage
+	•	Outstanding Debts
+	•	School Fees Status
+	•	Exeat Status
+	•	Chapel Attendance
+	•	Seminar Attendance
+	•	Institutional Event Attendance
+	•	Examination Eligibility Status
+	•	Outstanding Actions Required
+
+The dashboard shall update automatically whenever attendance is recorded, debts are paid, or administrative approvals are granted.
+
+⸻
+
+Weekly Compliance Notifications
+
+The system shall automatically send periodic notifications to students throughout the semester.
+
+Notifications shall include:
+
+	•	Current attendance percentage
+	•	Attendance warnings
+	•	Newly generated debts
+	•	Outstanding financial obligations
+	•	Examination qualification status
+	•	Required corrective actions
+	•	Clearance progress
+
+This continuous feedback enables students to resolve issues well before examinations begin.
+
+⸻
+
+Module 15: Digital Examination Hall Verification
+
+Quality Assurance officers shall verify students electronically at examination venues.
+
+No printed examination cards shall be required.
+
+Using the QA portal, officers shall search for a student using:
+
+	•	Student ID
+	•	Matriculation Number
+	•	Student Name
+	•	QR Code (Optional)
+	•	NFC Student ID Card (Optional)
+
+The system shall instantly display:
+
+	•	Student Photograph
+	•	Student Name
+	•	Matriculation Number
+	•	Registered Course
+	•	Attendance Percentage
+	•	Financial Clearance Status
+	•	Examination Eligibility Status
+
+The system shall return one of the following results:
+
+Qualified
+
+The student satisfies all institutional requirements and may enter the examination hall.
+
+Not Qualified
+
+The system shall display the exact reason(s), such as:
+
+	•	Outstanding school fees
+	•	Outstanding attendance-related debts
+	•	Chapel attendance deficiency
+	•	Insufficient class attendance
+	•	Unresolved exeat obligations
+	•	Other institutional restrictions
+
+Access shall be denied until the identified issues are resolved.
+
+⸻
+
+Overall Architecture Enhancement
+
+With these additions, the platform evolves into a complete Institutional Attendance, Compliance, Financial Recovery, Exeat, and Digital Examination Clearance Management System, where attendance, finance, administration, and examinations operate as one integrated ecosystem. The automation of debt generation, salary deductions, compliance reporting, examination eligibility, and electronic examination clearance significantly reduces manual processes, improves transparency, enhances student awareness, and strengthens institutional governance.
+
+
+Section 3
+
+Role-Based Access Control (RBAC)
+
+Overview
+
+The system shall implement a comprehensive Role-Based Access Control (RBAC) framework to ensure that every user accesses only the features and information relevant to their assigned responsibilities.
+
+Rather than providing separate applications or dedicated portals, the system shall operate as a single integrated platform where permissions are dynamically granted according to institutional roles.
+
+Each authenticated user shall only have access to modules, records, reports, and administrative functions authorized for their role.
+
+Supported Roles
+
+The system shall support configurable roles, including but not limited to:
+
+	•	System Administrator
+	•	Quality Assurance (QA)
+	•	Debt Recovery Officer
+	•	Bursary Officer
+	•	Academic Affairs
+	•	Registrar
+	•	Dean
+	•	Head of Department
+	•	Programme Coordinator
+	•	Lecturer
+	•	Examination Officer
+	•	Security Personnel
+	•	Student Affairs Officer
+	•	Staff Member
+	•	Student
+
+Institutions shall be able to create additional roles and customize permissions without modifying the application.
+
+⸻
+
+Automated Institutional Compliance Workflow
+
+The system shall automate institutional compliance by integrating attendance, financial obligations, academic requirements, and administrative policies into a unified decision engine.
+
+Compliance shall be evaluated continuously throughout the semester without requiring manual intervention.
+
+Whenever attendance is recorded or an event concludes, the system shall automatically determine applicable penalties, generate financial obligations where necessary, notify affected individuals, and update institutional compliance records.
+
+⸻
+
+Automated Staff Compliance Reporting
+
+For all staff-related mandatory events, the system shall automatically identify absent or non-compliant staff members based on attendance records.
+
+Examples include:
+
+	•	Staff meetings
+	•	Senate meetings
+	•	Faculty meetings
+	•	Departmental meetings
+	•	Workshops
+	•	Professional development programmes
+	•	Institutional ceremonies
+	•	Other mandatory official events
+
+Upon completion of an event, the system shall automatically generate compliance reports and make them immediately available to authorized users based on their assigned roles.
+
+Quality Assurance personnel shall monitor compliance statistics, while authorized Bursary personnel shall access attendance-related financial deductions in accordance with institutional policy.
+
+This automated process eliminates manual report preparation and ensures timely enforcement of institutional regulations.
+
+⸻
+
+Automated Student Debt Recovery
+
+Every institutional event or policy that attracts a financial penalty shall automatically generate a corresponding debt record upon verification of non-compliance.
+
+Applicable penalties may include, but are not limited to:
+
+	•	Chapel or Mass attendance violations
+	•	Institutional event absences
+	•	Seminar attendance violations
+	•	Exeat-related penalties
+	•	Attendance violations
+	•	Other institution-defined financial penalties
+
+Each generated debt shall immediately become part of the student’s cumulative financial obligations.
+
+The Debt Recovery function shall continuously maintain a consolidated ledger showing:
+
+	•	School fee balance
+	•	Attendance-related debts
+	•	Chapel/Mass penalties
+	•	Exeat penalties
+	•	Institutional event penalties
+	•	Other approved financial obligations
+
+The cumulative debt profile shall be used by all institutional modules requiring financial clearance.
+
+⸻
+
+Integrated Exeat Compliance
+
+The Exeat Management module shall automatically verify a student’s financial and institutional compliance before processing any application.
+
+Before approval, the system shall evaluate:
+
+	•	Outstanding school fees
+	•	Attendance-related debts
+	•	Chapel/Mass penalties
+	•	Institutional event penalties
+	•	Exeat-related debts
+	•	Other institutional financial obligations
+
+Where outstanding obligations exist, the system shall automatically suspend the Exeat application and notify the student of the outstanding requirements.
+
+Applications shall only proceed after all mandatory obligations have been satisfied or appropriately waived by authorized personnel.
+
+⸻
+
+Automated Examination Eligibility Engine
+
+The system shall continuously evaluate every registered course to determine whether a student satisfies all institutional requirements for examination eligibility.
+
+Eligibility shall be determined independently for each course and shall be updated automatically whenever attendance, financial records, registrations, or administrative approvals change.
+
+The evaluation shall include, but not be limited to:
+
+Academic Requirements
+
+	•	Minimum 80% class attendance for each registered course.
+	•	Valid course registration.
+	•	Faculty and departmental academic requirements.
+	•	Other institution-defined academic regulations.
+
+Financial Requirements
+
+	•	School fees payment status.
+	•	Outstanding attendance-related debts.
+	•	Chapel or Mass penalties.
+	•	Institutional event penalties.
+	•	Exeat-related debts.
+	•	Other approved institutional financial obligations.
+
+Approved Exeat Consideration
+
+Where a student’s approved Exeat coincides with scheduled lectures or compulsory academic activities, the affected classes shall be treated as officially excused absences.
+
+Such approved absences shall not negatively affect the student’s attendance percentage or examination eligibility.
+
+⸻
+
+Continuous Student Compliance Monitoring
+
+From the first academic week until the commencement of examinations, the system shall continuously monitor each student’s compliance status.
+
+Students shall receive periodic notifications summarizing:
+
+	•	Attendance percentage for each registered course.
+	•	Attendance warnings.
+	•	Newly generated debts.
+	•	Outstanding financial obligations.
+	•	Examination eligibility status.
+	•	Outstanding actions required to regain eligibility.
+	•	Clearance progress.
+
+This enables students to identify and resolve issues proactively before examination periods.
+
+⸻
+
+Electronic Examination Clearance
+
+The institution shall replace the traditional paper-based examination card with a fully electronic examination clearance system.
+
+Examination eligibility shall be determined automatically by the system based on institutional rules.
+
+Each registered course shall display one of the following statuses:
+
+	•	Qualified
+	•	Pending Clearance
+	•	Attendance Deficient
+	•	Outstanding Financial Obligations
+	•	Not Qualified
+
+Students shall no longer be required to obtain physical examination cards.
+
+Their eligibility shall exist entirely within the institutional system.
+
+⸻
+
+Biometric Examination Hall Access Control
+
+The system shall support biometric verification at examination venues to automate student admission into examination halls.
+
+Each examination hall shall be equipped with an approved biometric attendance device capable of verifying student identity using fingerprints or other institution-approved biometric methods.
+
+Upon biometric verification, the system shall instantly retrieve the student’s examination eligibility for the specific course scheduled at that time.
+
+The verification engine shall automatically evaluate:
+
+	•	Student identity.
+	•	Registered course.
+	•	Scheduled examination.
+	•	Attendance eligibility.
+	•	Financial clearance.
+	•	Institutional compliance.
+	•	Any disciplinary restrictions.
+	•	Other examination requirements established by the institution.
+
+Qualified Students
+
+Where all eligibility requirements are satisfied, the system shall automatically:
+
+	•	Authenticate the student’s identity.
+	•	Record examination attendance.
+	•	Register the student’s entry time.
+	•	Grant access for the specific examination.
+
+No manual intervention shall be required.
+
+Students Who Do Not Qualify
+
+Where any eligibility requirement has not been met, the biometric device shall deny examination access and display an appropriate status indicating that the student is Not Qualified.
+
+The system shall simultaneously provide the reason(s) for ineligibility, such as:
+
+	•	Insufficient class attendance.
+	•	Outstanding school fees.
+	•	Outstanding attendance-related debts.
+	•	Chapel or Mass attendance deficiency.
+	•	Exeat-related obligations.
+	•	Missing course registration.
+	•	Other institutional restrictions.
+
+Students whose access is denied shall be referred to the Quality Assurance (QA) officers stationed at the examination venue for review, complaint resolution, or escalation in accordance with institutional policy.
+
+Quality Assurance personnel shall serve as the designated exception-management authority, empowered to review exceptional cases, validate supporting documentation, and, where authorized, approve or reject examination access in accordance with established institutional regulations.
+
+⸻
+
+This approach aligns with enterprise systems used by universities and presents the design in a professional Software Requirements Specification (SRS) style. It clearly separates automated system decisions from administrative oversight, with QA acting as an exception handler rather than a manual gatekeeper, while RBAC ensures all functions are managed within a single integrated platform rather than separate portals.
+
+ 
+Last section 4
+Event Management and Compliance Engine
+
+Overview
+
+The system shall provide a configurable Event Management and Compliance Engine that enables the institution to create, schedule, monitor, and enforce attendance for all institution-approved events.
+
+The system shall support both academic and administrative events while allowing authorized personnel to define attendance requirements, participant categories, attendance windows, and applicable penalties.
+
+The platform shall support one-time events, recurring events, and concurrent events, allowing multiple attendance sessions to operate simultaneously without conflict.
+
+⸻
+
+Event Convener Role Assignment
+
+The System Administrator shall have the authority to assign the Event Convener role to authorized staff members through the Role-Based Access Control (RBAC) framework.
+
+Only users assigned the Event Convener role shall be permitted to create, configure, and manage institutional events.
+
+Role assignments shall be configurable and may be granted or revoked at any time by authorized administrators.
+
+⸻
+
+Event Creation
+
+An authorized Event Convener shall be able to create and configure an event by defining:
+
+General Information
+
+	•	Event Title
+	•	Event Description
+	•	Event Category
+	•	Organizing Unit
+	•	Venue
+	•	Academic Session
+	•	Semester
+	•	Event Type
+
+Examples of event types include:
+
+	•	Academic Lecture
+	•	Departmental Meeting
+	•	Faculty Meeting
+	•	Chapel/Mass
+	•	Convocation
+	•	Orientation
+	•	Seminar
+	•	Workshop
+	•	Conference
+	•	Staff Meeting
+	•	Senate Meeting
+	•	Student Assembly
+	•	Examination Briefing
+	•	Any institution-defined event
+
+⸻
+
+Event Scheduling
+
+The Event Convener shall configure:
+
+	•	Event Start Date
+	•	Event End Date
+	•	Attendance Opening Time
+	•	Attendance Closing Time
+	•	Grace Period for Late Attendance
+	•	Event Duration
+
+The system shall automatically activate attendance when the event begins and close attendance immediately after the configured closing time.
+
+⸻
+
+Participant Selection
+
+The system shall support dynamic participant selection.
+
+The Event Convener shall be able to target attendance to one or more participant groups, including but not limited to:
+
+Students
+
+	•	All Students
+	•	Faculty
+	•	Department
+	•	Programme
+	•	Level (100–600 Level)
+	•	Course Registration
+	•	Selected Students
+	•	Custom Student Groups
+
+Staff
+
+	•	All Staff
+	•	Academic Staff
+	•	Non-Academic Staff
+	•	Faculty
+	•	Department
+	•	Administrative Unit
+	•	Selected Staff
+	•	Custom Staff Groups
+
+Combined Groups
+
+The system shall also support combined participant groups such as:
+
+	•	Staff and Students
+	•	Academic Staff and 400-Level Students
+	•	Faculty-specific participants
+	•	Department-specific participants
+	•	Institution-wide participants
+	•	Any administrator-defined combination of user categories
+
+Participant selection shall be generated dynamically from institutional records to eliminate manual data entry.
+
+⸻
+
+Attendance Rules
+
+For every event, the Event Convener shall configure attendance policies including:
+
+	•	Attendance Mandatory or Optional
+	•	Attendance Verification Method
+	•	Attendance Opening Window
+	•	Attendance Closing Window
+	•	Late Attendance Threshold
+	•	Maximum Allowed Absence
+	•	Penalty Rules
+	•	Exception Rules
+
+The system shall automatically enforce these rules once attendance begins.
+
+⸻
+
+Institutional Penalty Configuration
+
+The System Administrator shall define and maintain a centralized Institutional Penalty Schedule containing all approved financial penalties.
+
+Penalty categories may include, but are not limited to:
+
+	•	Absence from compulsory events
+	•	Late attendance
+	•	Chapel/Mass absence
+	•	Seminar absence
+	•	Exeat violations
+	•	Examination misconduct penalties
+	•	Other institution-approved sanctions
+
+Each penalty definition shall include:
+
+	•	Penalty Name
+	•	Description
+	•	Applicable User Category
+	•	Penalty Amount
+	•	Penalty Type (Fixed or Variable)
+	•	Effective Date
+	•	Status (Active or Inactive)
+
+The penalty schedule shall serve as the institution’s single source of truth, ensuring consistent application of sanctions across all modules.
+
+⸻
+
+Event-Specific Penalty Assignment
+
+While creating an event, the Event Convener shall select the applicable penalty from the institution’s approved penalty schedule.
+
+For each event, the convener may configure:
+
+	•	No Penalty
+	•	Late Attendance Penalty
+	•	Absence Penalty
+	•	Both Late and Absence Penalties
+
+The system shall automatically apply the selected penalties to participants who violate the event attendance policy.
+
+Generated penalties shall immediately become part of the student’s or staff member’s institutional compliance and financial records.
+
+⸻
+
+Event Recurrence
+
+The system shall support multiple scheduling patterns for institutional events, including:
+
+	•	One-Time Events
+	•	Daily Events
+	•	Weekly Events
+	•	Monthly Events
+	•	Semester-Based Events
+	•	Session-Based Events
+	•	Custom Recurring Events
+
+Recurring events shall automatically generate attendance sessions according to the configured schedule without requiring manual recreation.
+
+⸻
+
+Concurrent Event Support
+
+The system shall support multiple events occurring simultaneously across different locations, departments, faculties, or organizational units.
+
+Each event shall maintain its own:
+
+	•	Attendance records
+	•	Participant lists
+	•	Attendance rules
+	•	Penalty configuration
+	•	Compliance reports
+	•	Notifications
+	•	Analytics
+
+Attendance processing for one event shall not interfere with any other active event.
+
+⸻
+
+Automated Event Lifecycle
+
+The system shall automatically manage the complete lifecycle of every event by:
+
+	1.	Activating attendance at the scheduled start time.
+	2.	Accepting attendance only within the configured attendance window.
+	3.	Classifying attendance as Present, Late, or Absent based on configured rules.
+	4.	Closing attendance automatically at the scheduled end time.
+	5.	Calculating attendance statistics.
+	6.	Applying financial penalties where applicable.
+	7.	Updating institutional compliance records.
+	8.	Generating reports for authorized users.
+	9.	Sending notifications to affected students or staff.
+	10.	Updating examination eligibility, debt recovery status, and other dependent institutional processes in real time.
+
+
+
+
+Recommended as a rule and a must
+
+Strategic Recommendations
+While the specification is thorough and logically sound, executing a system with this level of cross-departmental enforcement introduces high technical and operational risks. I recommend addressing the following architectural and human bottlenecks:
+Technical & Architectural Recommendations
+ Implement Strict Biometric Data Privacy (GDPR/NDPR): Storing biometric templates (faces and fingerprints) locally on venue terminals poses a massive security liability. Ensure templates are heavily encrypted using hardware-backed keystores (like Android TEE) and never stored as raw images.  
+ Design a Robust Offline Conflict Resolution Matrix: When offline terminals re-sync, timestamps are vulnerable to device clock drift or manipulation. The synchronization engine must use cryptographic handshakes and device-validated logs to resolve conflicts without corrupting the central PostgreSQL ledger.  
+ Optimize Database Performance for Peak Loads: At the exact moment an exam starts or a massive chapel session opens, thousands of biometric requests will hit the API concurrently. Leverage Redis heavily not just for caching, but for temporary request throttling and queue buffering to keep PostgreSQL from locking up.  
+Operational & Governance Recommendations
+ Mitigate "Exam Hall Door" Bottlenecks: Relying purely on biometric gatekeeping right outside an exam hall can cause severe crowding, delays, and student panic if a terminal lags or misidentifies a user. Recommendation: Push the "Pending Clearance" warnings heavily via the Weekly Compliance Notifications so 99% of issues are solved days before the exam.  
+ Establish Clear Legal Policies for Staff Deductions: Automatically docking staff salaries based entirely on IoT/terminal attendance data will almost certainly face pushback from labor unions or employment laws. Ensure there is a robust, multi-step manual approval workflow for HR/Deans before Bursary processes salary deductions.  
+ Define Clear Grace Periods for Variable Fines: To prevent a flood of students overwhelming the Quality Assurance unit due to false positives (e.g., being marked late due to a terminal queue), build a small operational safety buffer directly into the Event Compliance Engine rules.

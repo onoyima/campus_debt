@@ -1,0 +1,16 @@
+@import "tailwindcss";
+
+@theme {
+  --color-veritas-50: #e6f2f0;
+  --color-veritas-100: #b3d9d1;
+  --color-veritas-200: #80bfb3;
+  --color-veritas-300: #4da694;
+  --color-veritas-400: #268c78;
+  --color-veritas-500: #004f40;
+  --color-veritas-600: #00382e;
+  --color-veritas-700: #00281f;
+  --color-veritas-800: #001b14;
+  --color-veritas-900: #000d0a;
+  --color-milk: #FDF8F0;
+  --color-cream: #FAF3E3;
+}
