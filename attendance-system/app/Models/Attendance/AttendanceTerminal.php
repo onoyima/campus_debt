@@ -25,6 +25,10 @@ class AttendanceTerminal extends Model
         'last_poll_at',
         'public_key',
         'metadata',
+        'ip_address', 'port', 'comm_key', 'push_url', 'api_key',
+        'last_heartbeat_at', 'firmware', 'serial_number', 'device_model',
+        'user_count', 'fingerprint_count', 'face_count', 'transaction_count',
+        'connection_status',
     ];
 
     protected function casts(): array
@@ -34,6 +38,12 @@ class AttendanceTerminal extends Model
             'last_sync_at' => 'datetime',
             'last_poll_at' => 'datetime',
             'metadata' => 'array',
+            'port' => 'integer',
+            'last_heartbeat_at' => 'datetime',
+            'user_count' => 'integer',
+            'fingerprint_count' => 'integer',
+            'face_count' => 'integer',
+            'transaction_count' => 'integer',
         ];
     }
 
@@ -75,5 +85,25 @@ class AttendanceTerminal extends Model
     public function eventAttendances()
     {
         return $this->hasMany(AttendanceEventAttendance::class, 'verified_by_terminal_id');
+    }
+
+    public function scopeOnline($query)
+    {
+        return $query->where('connection_status', 'online');
+    }
+
+    public function scopeOffline($query)
+    {
+        return $query->where('connection_status', 'offline');
+    }
+
+    public function scopeByConnectionStatus($query, string $status)
+    {
+        return $query->where('connection_status', $status);
+    }
+
+    public function scopeByDeviceModel($query, string $model)
+    {
+        return $query->where('device_model', $model);
     }
 }

@@ -10,6 +10,7 @@ use App\Models\Attendance\AttendanceSession;
 use App\Models\Attendance\AttendanceStaffCompliance;
 use App\Models\Attendance\AttendanceStatusType;
 use App\Models\Attendance\AttendanceStudentDebtLedger;
+use App\Services\EventParticipantEnrollmentService;
 use Illuminate\Support\Facades\DB;
 
 class EventLifecycleService
@@ -18,10 +19,18 @@ class EventLifecycleService
     {
         $now = now();
 
-        AttendanceInstitutionalEvent::where('status', 'draft')
+        $activatedEvents = AttendanceInstitutionalEvent::where('status', 'draft')
             ->where('start_date', '<=', $now->toDateString())
             ->where('is_active', true)
-            ->update(['status' => 'active']);
+            ->get();
+        $activatedEvents->each(function ($event) {
+            $event->update(['status' => 'active']);
+            // Auto-enroll participants from target groups
+            if ($event->targetGroups()->exists()) {
+                $enrollmentService = app(EventParticipantEnrollmentService::class);
+                $enrollmentService->enrollFromTargetGroups($event);
+            }
+        });
 
         AttendanceInstitutionalEvent::where('status', 'active')
             ->where(function ($q) use ($now) {

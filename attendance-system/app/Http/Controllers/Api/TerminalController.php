@@ -30,6 +30,19 @@ class TerminalController extends Controller
             $query->where('terminal_type', $request->terminal_type);
         }
 
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->where(function ($q) use ($search) {
+                $q->where('device_id', 'like', "%{$search}%")
+                  ->orWhere('terminal_type', 'like', "%{$search}%")
+                  ->orWhere('os', 'like', "%{$search}%")
+                  ->orWhere('firmware_version', 'like', "%{$search}%")
+                  ->orWhere('ip_address', 'like', "%{$search}%")
+                  ->orWhere('serial_number', 'like', "%{$search}%")
+                  ->orWhere('device_model', 'like', "%{$search}%");
+            });
+        }
+
         $terminals = $query->paginate($perPage);
 
         return response()->json([
@@ -127,6 +140,20 @@ class TerminalController extends Controller
         } catch (\Exception $e) {
             return response()->json(['message' => 'Failed to delete terminal.', 'error' => $e->getMessage()], 500);
         }
+    }
+
+    public function restore(int $id): JsonResponse
+    {
+        $model = AttendanceTerminal::withTrashed()->findOrFail($id);
+        $model->restore();
+        return response()->json(['message' => 'Restored successfully.']);
+    }
+
+    public function forceDelete(int $id): JsonResponse
+    {
+        $model = AttendanceTerminal::withTrashed()->findOrFail($id);
+        $model->forceDelete();
+        return response()->json(['message' => 'Permanently deleted.']);
     }
 
     private function parseIncludes(Request $request, array $allowed): array

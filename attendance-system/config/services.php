@@ -60,4 +60,12 @@ return [
         'base_url' => env('SMS_BASE_URL', 'https://api.termii.com/api'),
     ],
 
+    'zkt' => [
+        'connection_timeout' => 5,
+        'read_timeout' => 5,
+        'poll_interval' => 30,
+        'auto_sync_users' => env('ZKT_AUTO_SYNC_USERS', true),
+        'auto_pull_attendance' => env('ZKT_AUTO_PULL_ATTENDANCE', true),
+    ],
+
 ];

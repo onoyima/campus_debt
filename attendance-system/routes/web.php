@@ -77,4 +77,6 @@ Route::get('/offline-sync', fn() => Inertia::render('OfflineSync/Index'));
 
 Route::get('/terminal-logs', fn() => Inertia::render('TerminalLogs/Index'));
 
+Route::get('/audit-logs', fn() => Inertia::render('AuditLogs/Index'));
+
 Route::get('/profile', fn() => Inertia::render('Profile'));

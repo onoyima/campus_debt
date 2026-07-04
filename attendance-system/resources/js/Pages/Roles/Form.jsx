@@ -3,6 +3,7 @@ import { Head } from '@inertiajs/react'
 import AppLayout from '../../Components/AppLayout'
 import FormInput from '../../Components/FormInput'
 import api from '../../api'
+import VeritasSpinner from '../../Components/VeritasSpinner'
 
 export default function RolesForm() {
   const isEdit = window.location.pathname.includes('/edit')
@@ -54,7 +55,7 @@ export default function RolesForm() {
   if (fetching) {
     return (
       <AppLayout>
-        <div className="text-center py-12 text-gray-500">Loading...</div>
+        <VeritasSpinner text="Loading..." />
       </AppLayout>
     )
   }
@@ -80,8 +81,10 @@ export default function RolesForm() {
             />
           </div>
           <div className="flex gap-3">
-            <button type="submit" disabled={loading} className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50">
-              {loading ? 'Saving...' : 'Save'}
+            <button type="submit" disabled={loading} className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 flex items-center gap-2">
+              {loading ? (
+                <><VeritasSpinner size="sm" /> Saving...</>
+              ) : 'Save'}
             </button>
             <a href="/roles" className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300">Cancel</a>
           </div>

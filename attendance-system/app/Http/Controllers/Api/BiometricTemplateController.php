@@ -130,6 +130,20 @@ class BiometricTemplateController extends Controller
         }
     }
 
+    public function restore(int $id): JsonResponse
+    {
+        $model = AttendanceBiometricTemplate::withTrashed()->findOrFail($id);
+        $model->restore();
+        return response()->json(['message' => 'Restored successfully.']);
+    }
+
+    public function forceDelete(int $id): JsonResponse
+    {
+        $model = AttendanceBiometricTemplate::withTrashed()->findOrFail($id);
+        $model->forceDelete();
+        return response()->json(['message' => 'Permanently deleted.']);
+    }
+
     public function logs(Request $request): JsonResponse
     {
         $perPage = $request->integer('per_page', 15);

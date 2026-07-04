@@ -94,6 +94,20 @@ class EventAttendanceController extends Controller
         return response()->json(['data' => $attendance]);
     }
 
+    public function restore(int $id): JsonResponse
+    {
+        $model = AttendanceEventAttendance::withTrashed()->findOrFail($id);
+        $model->restore();
+        return response()->json(['message' => 'Restored successfully.']);
+    }
+
+    public function forceDelete(int $id): JsonResponse
+    {
+        $model = AttendanceEventAttendance::withTrashed()->findOrFail($id);
+        $model->forceDelete();
+        return response()->json(['message' => 'Permanently deleted.']);
+    }
+
     private function parseIncludes(Request $request, array $allowed): array
     {
         if (!$request->filled('include')) {

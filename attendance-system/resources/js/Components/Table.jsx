@@ -1,6 +1,8 @@
+import VeritasSpinner from './VeritasSpinner'
+
 export default function Table({ columns, data, loading, onEdit, onDelete }) {
   if (loading) {
-    return <div className="text-center py-8 text-gray-500">Loading...</div>
+    return <VeritasSpinner text="Loading data..." />
   }
 
   if (!data || data.length === 0) {
