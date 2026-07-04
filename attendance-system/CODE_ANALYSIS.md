@@ -276,12 +276,12 @@ SendBulkWeeklyComplianceJob → NotificationService.sendBulkWeeklyCompliance()
 
 | Plan Requirement | Implementation Status | Details |
 |---|---|---|
-| **1. Classroom Attendance** | ✅ Implemented | Sessions, records, status types, excused absences |
+| **1. Classroom Attendance** | ✅ Implemented | Sessions, records, status types, excused absences. Auto-marks absent for course-registered students when sessions activate via `AutoAbsentMarkService` (integrated into `EventLifecycleService` + `SessionController`). |
 | **2. Seminar Attendance** | ✅ Implemented | Via institutional events with target groups |
 | **3. Staff Attendance** | ✅ Implemented | Clock-in/out with biometric, venue restriction |
 | **4. Chapel/Mass** | ⚠️ Partial | Event category exists, but NOT implemented: faculty/dept/level/assigned-day eligibility |
 | **5. Special Events** | ✅ Implemented | Institutional events with full lifecycle |
-| **6. Exam Leave** | ⚠️ Partial | `exam_leave` status type exists. NOT implemented: auto-marking sessions as exam leave from exeat requests |
+| **6. Exeat Leave** | ✅ Implemented | `exeat_leave` status type added (`counts_as_present=true`) — counts toward exam eligibility. Auto-marking via `attendance:process-exeat-leave` command (hourly). Approved exeats auto-create attendance records with `exeat_leave` status, counted as present by `EligibilityEngineService`. |
 | **7. Status Types** | ✅ Implemented | All 8 statuses (present, late, absent, excused, proxy, exam_leave, official_assignment, medical_leave) |
 | **8. Venue Auth** | ✅ Implemented | Venues + terminals with device certificates |
 | **9. Attendance Terminals** | ⚠️ Partial | DB schema exists, REST API for CRUD. NOT implemented: actual terminal software (Android/Linux app) |

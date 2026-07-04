@@ -84,9 +84,32 @@ export default function TerminalsIndex() {
     }
   }
 
+  const modeLabel = (mode) => ({
+    any: 'Unrestricted',
+    class_only: 'Class Only',
+    staff_only: 'Staff Only',
+    event_only: 'Event Only',
+  }[mode] || mode)
+
+  const modeColor = (mode) => ({
+    any: 'bg-blue-100 text-blue-800',
+    class_only: 'bg-purple-100 text-purple-800',
+    staff_only: 'bg-green-100 text-green-800',
+    event_only: 'bg-orange-100 text-orange-800',
+  }[mode] || 'bg-gray-100 text-gray-800')
+
   const columns = [
     { key: 'device_id', label: 'Device ID' },
     { key: 'terminal_type', label: 'Type' },
+    {
+      key: 'clocking_mode',
+      label: 'Clocking Mode',
+      render: (val) => (
+        <span className={`px-2 py-0.5 text-[10px] font-semibold rounded-full ${modeColor(val)}`}>
+          {modeLabel(val)}
+        </span>
+      ),
+    },
     { key: 'os', label: 'OS' },
     { key: 'firmware_version', label: 'Firmware' },
     {

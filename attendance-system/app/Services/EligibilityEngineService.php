@@ -88,6 +88,7 @@ class EligibilityEngineService
         $schoolFeesCleared = $this->checkSchoolFees($studentId);
         $attendanceDebtsCleared = !AttendanceDebt::where('student_id', $studentId)
             ->where('payment_status', 'unpaid')
+            ->where('blocks_eligibility', true)
             ->exists();
         $courseRegistered = AttendanceRecord::where('student_id', $studentId)
             ->whereIn('session_id', $sessionIds)

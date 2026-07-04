@@ -11,4 +11,4 @@ Artisan::command('inspire', function () {
 Schedule::command('attendance:process-events')->everyMinute();
 Schedule::command('attendance:evaluate-eligibility')->hourly();
 Schedule::command('attendance:weekly-compliance')->weekly()->saturdays()->at('08:00');
-Schedule::command('attendance:process-exam-leave')->hourly();
+Schedule::command('attendance:process-exeat-leave')->hourly();

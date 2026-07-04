@@ -66,6 +66,8 @@ class TerminalController extends Controller
             'os' => 'nullable|string|max:100',
             'firmware_version' => 'nullable|string|max:50',
             'description' => 'nullable|string',
+            'clocking_mode' => 'nullable|string|in:any,class_only,staff_only,event_only',
+            'allow_any_venue' => 'nullable|boolean',
         ]);
 
         if ($validator->fails()) {
@@ -109,6 +111,8 @@ class TerminalController extends Controller
             'is_active' => 'boolean',
             'os' => 'nullable|string|max:100',
             'firmware_version' => 'nullable|string|max:50',
+            'clocking_mode' => 'nullable|string|in:any,class_only,staff_only,event_only',
+            'allow_any_venue' => 'nullable|boolean',
         ]);
 
         if ($validator->fails()) {

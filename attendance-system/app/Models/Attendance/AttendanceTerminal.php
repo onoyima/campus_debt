@@ -18,6 +18,8 @@ class AttendanceTerminal extends Model
         'device_id',
         'device_certificate',
         'terminal_type',
+        'clocking_mode',
+        'allow_any_venue',
         'os',
         'firmware_version',
         'is_active',
@@ -35,6 +37,7 @@ class AttendanceTerminal extends Model
     {
         return [
             'is_active' => 'boolean',
+            'allow_any_venue' => 'boolean',
             'last_sync_at' => 'datetime',
             'last_poll_at' => 'datetime',
             'metadata' => 'array',

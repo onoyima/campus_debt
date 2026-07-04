@@ -5,9 +5,11 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Attendance\AttendanceSession;
 use App\Models\Attendance\AttendanceRecord;
+use App\Services\AutoAbsentMarkService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
+use PhpOffice\PhpSpreadsheet\IOFactory;
 
 class SessionController extends Controller
 {
@@ -97,9 +99,14 @@ class SessionController extends Controller
         }
 
         try {
-            $session = AttendanceSession::create($validator->validated());
+            $data = $validator->validated();
+            $session = AttendanceSession::create($data);
             $session->load('venue');
             $session->loadCount('records');
+
+            if (($data['status'] ?? null) === 'active' && !empty($data['course_assigned_id'])) {
+                app(AutoAbsentMarkService::class)->markAbsentForSession($session);
+            }
 
             return response()->json(['data' => $session, 'message' => 'Session created successfully.'], 201);
         } catch (\Exception $e) {
@@ -160,9 +167,16 @@ class SessionController extends Controller
         }
 
         try {
-            $session->update($validator->validated());
+            $data = $validator->validated();
+            $wasActive = $session->status === 'active';
+            $session->update($data);
             $session->load('venue');
             $session->loadCount('records');
+
+            $becameActive = ($data['status'] ?? null) === 'active' || (!$wasActive && $session->status === 'active');
+            if ($becameActive && $session->course_assigned_id) {
+                app(AutoAbsentMarkService::class)->markAbsentForSession($session);
+            }
 
             return response()->json(['data' => $session, 'message' => 'Session updated successfully.']);
         } catch (\Exception $e) {
@@ -184,6 +198,132 @@ class SessionController extends Controller
             return response()->json(['message' => 'Session deleted successfully.']);
         } catch (\Exception $e) {
             return response()->json(['message' => 'Failed to delete session.', 'error' => $e->getMessage()], 500);
+        }
+    }
+
+    public function downloadTemplate()
+    {
+        $headers = [
+            'Content-Type' => 'text/csv',
+            'Content-Disposition' => 'attachment; filename="session_upload_template.csv"',
+        ];
+
+        $columns = ['staff_id', 'session_type', 'session_date', 'opens_at', 'closes_at', 'venue_id', 'title', 'course_assigned_id', 'max_participants', 'status'];
+        $callback = function () use ($columns) {
+            $handle = fopen('php://output', 'w');
+            fputcsv($handle, $columns);
+            fputcsv($handle, ['101', 'lecture', '2026-07-10', '2026-07-10 09:00:00', '2026-07-10 11:00:00', '1', 'CSC 101 - Introduction', '42', '100', 'active']);
+            fputcsv($handle, ['102', 'practical', '2026-07-11', '2026-07-11 14:00:00', '2026-07-11 17:00:00', '2', 'PHY 102 Lab', '', '50', 'scheduled']);
+            fclose($handle);
+        };
+
+        return response()->stream($callback, 200, $headers);
+    }
+
+    public function bulkUpload(Request $request): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'file' => 'required|file|mimes:csv,txt,xlsx,xls|max:10240',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['errors' => $validator->errors()], 422);
+        }
+
+        try {
+            $file = $request->file('file');
+            $extension = $file->getClientOriginalExtension();
+            $rows = [];
+
+            if (in_array($extension, ['csv', 'txt'])) {
+                $handle = fopen($file->getRealPath(), 'r');
+                $header = fgetcsv($handle);
+                while (($row = fgetcsv($handle)) !== false) {
+                    $rows[] = array_combine($header, $row);
+                }
+                fclose($handle);
+            } else {
+                $spreadsheet = IOFactory::load($file->getRealPath());
+                $worksheet = $spreadsheet->getActiveSheet();
+                $data = $worksheet->toArray();
+                $header = array_shift($data);
+                foreach ($data as $row) {
+                    if (array_filter($row)) {
+                        $rows[] = array_combine($header, $row);
+                    }
+                }
+            }
+
+            if (empty($rows)) {
+                return response()->json(['message' => 'File is empty.'], 422);
+            }
+
+            $created = 0;
+            $failed = [];
+            $autoAbsent = app(AutoAbsentMarkService::class);
+
+            foreach ($rows as $i => $row) {
+                $staffId = trim($row['staff_id'] ?? '');
+                $sessionType = trim($row['session_type'] ?? '');
+                $sessionDate = trim($row['session_date'] ?? '');
+                $opensAt = trim($row['opens_at'] ?? '');
+                $closesAt = trim($row['closes_at'] ?? '');
+
+                if (!$staffId || !is_numeric($staffId)) {
+                    $failed[] = "Row " . ($i + 2) . ": invalid or missing staff_id";
+                    continue;
+                }
+                if (!$sessionType) {
+                    $failed[] = "Row " . ($i + 2) . " (staff {$staffId}): missing session_type";
+                    continue;
+                }
+                if (!$sessionDate) {
+                    $failed[] = "Row " . ($i + 2) . " (staff {$staffId}): missing session_date";
+                    continue;
+                }
+                if (!$opensAt) {
+                    $failed[] = "Row " . ($i + 2) . " (staff {$staffId}): missing opens_at";
+                    continue;
+                }
+                if (!$closesAt) {
+                    $failed[] = "Row " . ($i + 2) . " (staff {$staffId}): missing closes_at";
+                    continue;
+                }
+
+                try {
+                    $venueId = trim($row['venue_id'] ?? '');
+                    $data = [
+                        'staff_id' => (int) $staffId,
+                        'session_type' => $sessionType,
+                        'session_date' => $sessionDate,
+                        'opens_at' => $opensAt,
+                        'closes_at' => $closesAt,
+                        'venue_id' => $venueId !== '' ? (int) $venueId : null,
+                        'title' => trim($row['title'] ?? ''),
+                        'course_assigned_id' => isset($row['course_assigned_id']) && $row['course_assigned_id'] !== '' ? (int) $row['course_assigned_id'] : null,
+                        'max_participants' => isset($row['max_participants']) && $row['max_participants'] !== '' ? (int) $row['max_participants'] : null,
+                        'status' => trim($row['status'] ?? 'scheduled'),
+                    ];
+
+                    $session = AttendanceSession::create($data);
+
+                    if ($session->status === 'active' && $session->course_assigned_id) {
+                        $autoAbsent->markAbsentForSession($session);
+                    }
+
+                    $created++;
+                } catch (\Exception $e) {
+                    $failed[] = "Row " . ($i + 2) . " (staff {$staffId}): " . $e->getMessage();
+                }
+            }
+
+            return response()->json([
+                'message' => "{$created} session(s) created. " . count($failed) . " row(s) failed.",
+                'created' => $created,
+                'failed' => $failed,
+            ]);
+        } catch (\Exception $e) {
+            return response()->json(['message' => 'Failed to process file.', 'error' => $e->getMessage()], 500);
         }
     }
 

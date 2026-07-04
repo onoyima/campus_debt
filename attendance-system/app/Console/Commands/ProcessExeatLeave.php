@@ -2,22 +2,22 @@
 
 namespace App\Console\Commands;
 
-use App\Services\ExamLeaveAutoMarkService;
+use App\Services\ExeatLeaveAutoMarkService;
 use Illuminate\Console\Command;
 
-class ProcessExamLeaveFromExeat extends Command
+class ProcessExeatLeave extends Command
 {
-    protected $signature = 'attendance:process-exam-leave {--exeat-id=}';
-    protected $description = 'Auto-mark attendance records as exam_leave from approved exeat requests';
+    protected $signature = 'attendance:process-exeat-leave {--exeat-id=}';
+    protected $description = 'Auto-mark attendance records as exeat_leave from approved exeat requests';
 
-    public function handle(ExamLeaveAutoMarkService $service): void
+    public function handle(ExeatLeaveAutoMarkService $service): void
     {
         $exeatId = $this->option('exeat-id');
 
         if ($exeatId) {
-            $this->info("Processing exam leave for exeat request #{$exeatId}...");
+            $this->info("Processing exeat leave for exeat request #{$exeatId}...");
         } else {
-            $this->info('Processing exam leave for all approved exeat requests...');
+            $this->info('Processing exeat leave for all approved exeat requests...');
         }
 
         $result = $service->process($exeatId ? (int)$exeatId : null);

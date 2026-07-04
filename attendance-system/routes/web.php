@@ -22,6 +22,7 @@ Route::get('/terminals/create', fn() => Inertia::render('Terminals/Form'));
 Route::get('/terminals/{id}/edit', fn() => Inertia::render('Terminals/Form'));
 
 Route::get('/sessions', fn() => Inertia::render('Sessions/Index'));
+Route::get('/sessions/upload', fn() => Inertia::render('Sessions/Upload'));
 Route::get('/sessions/create', fn() => Inertia::render('Sessions/Form'));
 Route::get('/sessions/{id}/edit', fn() => Inertia::render('Sessions/Form'));
 
@@ -38,6 +39,7 @@ Route::get('/excuses', fn() => Inertia::render('Excuses/Index'));
 Route::get('/staff-clockings', fn() => Inertia::render('StaffClockings/Index'));
 
 Route::get('/debts', fn() => Inertia::render('Debts/Index'));
+Route::get('/debts/upload', fn() => Inertia::render('Debts/Upload'));
 Route::get('/debts/recovery', fn() => Inertia::render('Debts/RecoveryDashboard'));
 
 Route::get('/penalties', fn() => Inertia::render('Penalties/Index'));

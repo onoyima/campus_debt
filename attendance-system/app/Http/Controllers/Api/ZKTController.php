@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Attendance\AttendanceTerminal;
+use App\Services\TerminalClockingService;
 use App\Services\ZktService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -16,6 +17,21 @@ class ZKTController extends Controller
     public function __construct(ZktService $zktService)
     {
         $this->zktService = $zktService;
+    }
+
+    /**
+     * Get terminal configuration for sync (machines poll this endpoint)
+     */
+    public function config(Request $request, $id): JsonResponse
+    {
+        $terminal = AttendanceTerminal::with('venue')->find($id);
+        if (!$terminal) {
+            return response()->json(['message' => 'Terminal not found'], 404);
+        }
+
+        $config = app(TerminalClockingService::class)->getConfig($terminal);
+
+        return response()->json(['data' => $config]);
     }
 
     /**
@@ -34,6 +50,7 @@ class ZKTController extends Controller
             'fingerprint_count' => 'nullable|integer',
             'face_count' => 'nullable|integer',
             'transaction_count' => 'nullable|integer',
+            'clocking_mode' => 'nullable|string|in:any,class_only,staff_only,event_only',
         ]);
 
         if ($validator->fails()) {
@@ -73,11 +90,12 @@ class ZKTController extends Controller
         }
 
         $data['api_key'] = bin2hex(random_bytes(32));
-        $terminal = AttendanceTerminal::create($updateData + [
+        $terminal = AttendanceTerminal::create(array_merge($updateData, [
             'device_id' => $data['device_id'],
             'terminal_type' => 'zk_biometric',
             'os' => 'zk_linux',
-        ]);
+            'clocking_mode' => $data['clocking_mode'] ?? 'any',
+        ]));
         $terminal->refresh();
 
         $this->zktService->logActivity($terminal, 'registered', 'info', 'New terminal registered');

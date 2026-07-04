@@ -36,14 +36,17 @@ export default function BiometricsEnroll() {
   const user = (() => {
     try { return JSON.parse(localStorage.getItem('user') || '{}') } catch { return {} }
   })()
+  const userRoles = user.roles || []
   const isStaff = user.type === 'staff'
+  const canViewAllTemplates = userRoles.includes('system_administrator')
 
   const fetchTemplates = useCallback(() => {
     if (!localStorage.getItem('token')) return
+    if (!canViewAllTemplates) { setLoading(false); return }
     api.get('/biometric-templates', {
       params: { user_id: user.id, user_type: user.type, per_page: 50 }
     }).then(res => setTemplates(res.data.data || [])).catch(() => {}).finally(() => setLoading(false))
-  }, [user.id, user.type])
+  }, [user.id, user.type, canViewAllTemplates])
 
   useEffect(() => { fetchTemplates() }, [fetchTemplates])
   useEffect(() => {

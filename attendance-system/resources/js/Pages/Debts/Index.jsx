@@ -46,6 +46,18 @@ export default function DebtsIndex() {
     fetchDebts({ page: 1 })
   }
 
+  const handleToggleEligibility = async (debt) => {
+    setActionLoading(prev => ({ ...prev, [`eligibility-${debt.id}`]: true }))
+    try {
+      const res = await api.post(`/debts/${debt.id}/toggle-eligibility`)
+      setDebts((prev) => prev.map((d) => d.id === debt.id ? { ...d, blocks_eligibility: res.data.data?.blocks_eligibility ?? !d.blocks_eligibility } : d))
+    } catch (err) {
+      alert(err.response?.data?.message || 'Toggle failed')
+    } finally {
+      setActionLoading(prev => ({ ...prev, [`eligibility-${debt.id}`]: false }))
+    }
+  }
+
   const handleDelete = async (debt) => {
     if (!confirm(`Delete this debt record?`)) return
     setActionLoading(prev => ({ ...prev, [`delete-${debt.id}`]: true }))
@@ -95,6 +107,23 @@ export default function DebtsIndex() {
         }`}>
           {val}
         </span>
+      ),
+    },
+    {
+      key: 'blocks_eligibility',
+      label: 'Blocks Exam',
+      render: (val, row) => (
+        <button
+          onClick={() => handleToggleEligibility(row)}
+          disabled={actionLoading[`eligibility-${row.id}`]}
+          className={`px-2 py-1 text-xs rounded-full font-medium border transition-colors ${
+            val
+              ? 'bg-red-100 text-red-700 border-red-200 hover:bg-red-200'
+              : 'bg-gray-100 text-gray-500 border-gray-200 hover:bg-gray-200'
+          }`}
+        >
+          {actionLoading[`eligibility-${row.id}`] ? <VeritasSpinner size="sm" /> : val ? 'Blocking' : 'Financial Only'}
+        </button>
       ),
     },
     {

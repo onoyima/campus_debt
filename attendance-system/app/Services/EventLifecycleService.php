@@ -10,6 +10,7 @@ use App\Models\Attendance\AttendanceSession;
 use App\Models\Attendance\AttendanceStaffCompliance;
 use App\Models\Attendance\AttendanceStatusType;
 use App\Models\Attendance\AttendanceStudentDebtLedger;
+use App\Services\AutoAbsentMarkService;
 use App\Services\EventParticipantEnrollmentService;
 use Illuminate\Support\Facades\DB;
 
@@ -45,9 +46,19 @@ class EventLifecycleService
                 $this->closeEvent($event);
             });
 
+        $activatingSessions = AttendanceSession::where('status', 'scheduled')
+            ->where('opens_at', '<=', $now)
+            ->get();
+
         AttendanceSession::where('status', 'scheduled')
             ->where('opens_at', '<=', $now)
             ->update(['status' => 'active']);
+
+        foreach ($activatingSessions as $session) {
+            if ($session->course_assigned_id) {
+                app(AutoAbsentMarkService::class)->markAbsentForSession($session);
+            }
+        }
 
         AttendanceSession::where('status', 'active')
             ->where('closes_at', '<=', $now)

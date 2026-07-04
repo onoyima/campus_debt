@@ -160,6 +160,8 @@ Route::middleware(['auth:sanctum', 'throttle:api'])->group(function () {
 
     // Examination & Quality Assurance — examination_officer, qa_officer, system_administrator
     Route::middleware(['staff.access', 'role:examination_officer,qa_officer,system_administrator'])->group(function () {
+        Route::get('sessions/upload/template', [SessionController::class, 'downloadTemplate'])->name('api.sessions.upload.template');
+        Route::post('sessions/upload', [SessionController::class, 'bulkUpload'])->name('api.sessions.upload');
         Route::apiResource('sessions', SessionController::class)->names('api.sessions');
         Route::post('sessions/{id}/restore', [SessionController::class, 'restore'])->name('api.sessions.restore');
         Route::delete('sessions/{id}/force', [SessionController::class, 'forceDelete'])->name('api.sessions.force-delete');
@@ -225,6 +227,7 @@ Route::middleware(['auth:sanctum', 'throttle:api'])->group(function () {
     Route::post('terminals/zk/register', [ZKTController::class, 'register'])->name('api.terminals.zk.register');
     Route::post('terminals/zk/attendance', [ZKTController::class, 'pushAttendance'])->name('api.terminals.zk.attendance');
     Route::post('terminals/zk/heartbeat', [ZKTController::class, 'heartbeat'])->name('api.terminals.zk.heartbeat');
+    Route::get('terminals/{id}/zk/config', [ZKTController::class, 'config'])->name('api.terminals.zk.config');
 
     // Admin-controlled ZKT operations (require auth)
     Route::middleware(['auth:sanctum', 'throttle:api', 'staff.access', 'role:system_administrator'])->group(function () {
@@ -240,9 +243,12 @@ Route::middleware(['auth:sanctum', 'throttle:api'])->group(function () {
         Route::post('penalty-schedule/{id}/restore', [PenaltyScheduleController::class, 'restore'])->name('api.penalty-schedule.restore');
         Route::delete('penalty-schedule/{id}/force', [PenaltyScheduleController::class, 'forceDelete'])->name('api.penalty-schedule.force-delete');
 
+        Route::get('debts/upload/template', [DebtController::class, 'downloadTemplate'])->name('api.debts.upload.template');
+        Route::post('debts/upload', [DebtController::class, 'bulkUpload'])->name('api.debts.upload');
         Route::apiResource('debts', DebtController::class)->names('api.debts');
         Route::post('debts/{id}/restore', [DebtController::class, 'restore'])->name('api.debts.restore');
         Route::delete('debts/{id}/force', [DebtController::class, 'forceDelete'])->name('api.debts.force-delete');
+        Route::post('debts/{id}/toggle-eligibility', [DebtController::class, 'toggleEligibility'])->name('api.debts.toggle-eligibility');
 
         Route::apiResource('debt-payments', DebtPaymentController::class)->names('api.debt-payments');
         Route::post('debt-payments/{id}/restore', [DebtPaymentController::class, 'restore'])->name('api.debt-payments.restore');

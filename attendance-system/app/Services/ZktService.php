@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\Attendance\AttendanceSession;
 use App\Models\Attendance\AttendanceTerminal;
 use App\Models\Attendance\AttendanceBiometricTemplate;
 use Illuminate\Support\Facades\Log;
@@ -364,24 +365,93 @@ class ZktService
         $userId = $record['user_id'] ?? null;
         $timestamp = $record['timestamp'] ?? now();
         $method = $record['method'] ?? 'fingerprint';
-        $venueId = $terminal->venue_id;
+        $clockingType = $record['clocking_type'] ?? null;
 
         if (!$userId) {
             return ['success' => false, 'error' => 'Missing user_id'];
         }
 
+        $clockingService = app(TerminalClockingService::class);
+
+        if (!$clockingService->canClockFor($terminal, $clockingType ?? 'any')) {
+            return ['success' => false, 'error' => "Terminal not permitted for '{$clockingType}' clocking"];
+        }
+
+        $targetTable = 'attendance_records';
+        $payload = [];
+
+        // If the terminal is class_only, find the active session at its venue
+        $session = null;
+        if ($terminal->clocking_mode === TerminalClockingService::MODE_CLASS || $clockingType === 'class') {
+            $session = $clockingService->findActiveSessionForTerminal($terminal);
+            if (!$session) {
+                return ['success' => false, 'error' => 'No active session found for this terminal'];
+            }
+            $targetTable = 'attendance_records';
+            $payload = [
+                'student_id' => (int) $userId,
+                'session_id' => $session->id,
+                'venue_id' => $session->venue_id,
+                'verified_by_terminal_id' => $terminal->id,
+                'timestamp' => $timestamp,
+                'attendance_method' => $method,
+                'sync_status' => 'pending',
+            ];
+        } elseif ($terminal->clocking_mode === TerminalClockingService::MODE_STAFF || $clockingType === 'staff') {
+            $targetTable = 'attendance_staff_clocking';
+            $payload = [
+                'staff_id' => (int) $userId,
+                'clock_type' => 'in',
+                'timestamp' => $timestamp,
+                'venue_id' => $terminal->venue_id,
+                'verified_by_terminal_id' => $terminal->id,
+                'attendance_method' => $method,
+                'sync_status' => 'pending',
+            ];
+        } elseif ($terminal->clocking_mode === TerminalClockingService::MODE_EVENT || $clockingType === 'event') {
+            $targetTable = 'attendance_event_attendance';
+            $payload = [
+                'participant_id' => (int) $userId,
+                'participant_type' => 'student',
+                'timestamp' => $timestamp,
+                'venue_id' => $terminal->venue_id,
+                'verified_by_terminal_id' => $terminal->id,
+                'attendance_method' => $method,
+                'sync_status' => 'pending',
+            ];
+        } else {
+            // any mode — try to auto-detect from active session
+            $session = $clockingService->findActiveSessionForTerminal($terminal);
+            if ($session) {
+                $targetTable = 'attendance_records';
+                $payload = [
+                    'student_id' => (int) $userId,
+                    'session_id' => $session->id,
+                    'venue_id' => $session->venue_id,
+                    'verified_by_terminal_id' => $terminal->id,
+                    'timestamp' => $timestamp,
+                    'attendance_method' => $method,
+                    'sync_status' => 'pending',
+                ];
+            } else {
+                // fallback: generic attendance record
+                $payload = [
+                    'student_id' => (int) $userId,
+                    'timestamp' => $timestamp,
+                    'attendance_method' => $method,
+                    'venue_id' => $terminal->venue_id,
+                    'verified_by_terminal_id' => $terminal->id,
+                    'sync_status' => 'pending',
+                ];
+            }
+        }
+
         $syncRecord = \App\Models\Attendance\AttendanceOfflinePendingSync::create([
             'terminal_id' => $terminal->id,
-            'table_name' => 'attendance_records',
+            'table_name' => $targetTable,
             'record_id' => null,
             'action' => 'create',
-            'payload' => json_encode([
-                'user_id' => (int) $userId,
-                'timestamp' => $timestamp,
-                'method' => $method,
-                'venue_id' => $venueId,
-                'terminal_id' => $terminal->id,
-            ]),
+            'payload' => json_encode($payload),
             'status' => 'pending',
         ]);
 
@@ -389,6 +459,7 @@ class ZktService
             'user_id' => $userId,
             'success' => true,
             'sync_id' => $syncRecord->id,
+            'table' => $targetTable,
         ];
     }
 

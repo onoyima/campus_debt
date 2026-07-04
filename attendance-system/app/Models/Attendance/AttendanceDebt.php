@@ -23,6 +23,7 @@ class AttendanceDebt extends Model
         'due_date',
         'payment_status',
         'clearance_status',
+        'blocks_eligibility',
         'cleared_by',
         'cleared_at',
         'waiver_reason',
@@ -35,6 +36,7 @@ class AttendanceDebt extends Model
         return [
             'due_date' => 'date',
             'cleared_at' => 'datetime',
+            'blocks_eligibility' => 'boolean',
             'metadata' => 'array',
         ];
     }

@@ -11,6 +11,7 @@ export default function TerminalsForm() {
 
   const [form, setForm] = useState({
     venue_id: '', device_id: '', device_certificate: '', terminal_type: 'dedicated', os: '', firmware_version: '', is_active: true,
+    clocking_mode: 'any', allow_any_venue: false,
   })
   const [venues, setVenues] = useState([])
   const [error, setError] = useState(null)
@@ -32,6 +33,8 @@ export default function TerminalsForm() {
             os: d.os ?? '',
             firmware_version: d.firmware_version ?? '',
             is_active: d.is_active ?? true,
+            clocking_mode: d.clocking_mode ?? 'any',
+            allow_any_venue: d.allow_any_venue ?? false,
           })
         })
         .catch(() => window.location.href = '/terminals')
@@ -98,6 +101,24 @@ export default function TerminalsForm() {
               <option value="mobile">Mobile</option>
             </select>
           </div>
+          <div className="mb-4">
+            <label className="block text-sm font-medium text-gray-700 mb-1">Clocking Mode</label>
+            <select name="clocking_mode" value={form.clocking_mode} onChange={handleChange} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500">
+              <option value="any">Unrestricted (any clocking)</option>
+              <option value="class_only">Class Only (dedicated classroom machine)</option>
+              <option value="staff_only">Staff Only (staff clocking)</option>
+              <option value="event_only">Event Only (event attendance)</option>
+            </select>
+            <p className="text-xs text-gray-500 mt-1">Determines what this machine can be used for.</p>
+          </div>
+          {form.clocking_mode === 'class_only' && (
+            <div className="mb-4">
+              <label className="flex items-center">
+                <input type="checkbox" name="allow_any_venue" checked={form.allow_any_venue} onChange={handleChange} className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
+                <span className="ml-2 text-sm text-gray-700">Allow any venue (not restricted to this terminal's venue)</span>
+              </label>
+            </div>
+          )}
           <FormInput label="OS" name="os" value={form.os} onChange={handleChange} />
           <FormInput label="Firmware Version" name="firmware_version" value={form.firmware_version} onChange={handleChange} />
           <div className="mb-4">
