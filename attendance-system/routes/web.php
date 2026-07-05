@@ -4,7 +4,7 @@ use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
 Route::get('/', function () {
-    return Inertia::render('Welcome');
+    return Inertia::render('Login');
 });
 
 Route::get('/login', function () {
@@ -36,6 +36,7 @@ Route::get('/attendance-records', fn() => Inertia::render('AttendanceRecords/Ind
 
 Route::get('/excuses', fn() => Inertia::render('Excuses/Index'));
 
+Route::get('/staff-dashboard', fn() => Inertia::render('StaffDashboard/Index'));
 Route::get('/staff-clockings', fn() => Inertia::render('StaffClockings/Index'));
 
 Route::get('/debts', fn() => Inertia::render('Debts/Index'));
@@ -71,6 +72,11 @@ Route::get('/exeats', fn() => Inertia::render('Exeats/Index'));
 Route::get('/exeats/{id}', fn() => Inertia::render('Exeats/Show'));
 
 Route::get('/student-dashboard', fn() => Inertia::render('StudentDashboard/Index'));
+Route::get('/student/my-debts', fn() => Inertia::render('Student/MyDebts'));
+Route::get('/student/my-attendance', fn() => Inertia::render('Student/MyAttendance'));
+
+Route::get('/staff/courses', fn() => Inertia::render('StaffCourses/Index'));
+Route::get('/staff/courses/{id}', fn() => Inertia::render('StaffCourses/Show'));
 
 Route::get('/exam-clearance', fn() => Inertia::render('ExamClearance/Index'));
 Route::get('/exam-clearance/verify', fn() => Inertia::render('ExamClearance/Verify'));
@@ -81,4 +87,9 @@ Route::get('/terminal-logs', fn() => Inertia::render('TerminalLogs/Index'));
 
 Route::get('/audit-logs', fn() => Inertia::render('AuditLogs/Index'));
 
+Route::get('/course-assignments', fn() => Inertia::render('CourseAssignments/Index'));
+Route::get('/portal-roles', fn() => Inertia::render('PortalRoles/Index'));
+
 Route::get('/profile', fn() => Inertia::render('Profile'));
+
+Route::get('/ghost/results', fn() => Inertia::render('GhostResults/Index'));

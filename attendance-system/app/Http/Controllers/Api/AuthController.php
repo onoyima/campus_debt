@@ -9,11 +9,27 @@ use App\Models\Portal\Student;
 use App\Models\Portal\StudentAcademic;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
 
 class AuthController extends Controller
 {
+    private function passportUrl(?string $value): ?string
+    {
+        if (!$value) return null;
+        if (str_starts_with($value, 'http')) return $value;
+        $mime = match (true) {
+            str_starts_with($value, '/9j/') => 'image/jpeg',
+            str_starts_with($value, 'iVBOR') => 'image/png',
+            str_starts_with($value, 'R0lGOD') => 'image/gif',
+            str_starts_with($value, 'UklGR') => 'image/webp',
+            default => 'image/jpeg',
+        };
+        return "data:$mime;base64,$value";
+    }
+
     public function login(Request $request): JsonResponse
     {
         $request->validate([
@@ -49,7 +65,7 @@ class AuthController extends Controller
                         'lname' => $student->lname,
                         'email' => $student->email,
                         'matric_no' => $academic?->matric_no,
-                        'passport' => $student->passport,
+                        'passport' => $this->passportUrl($student->passport),
                     ],
                 ]);
             }
@@ -82,7 +98,7 @@ class AuthController extends Controller
                         'mname' => $staff->mname,
                         'lname' => $staff->lname,
                         'email' => $staff->email,
-                        'passport' => $staff->passport,
+                        'passport' => $this->passportUrl($staff->passport),
                         'roles' => $roleNames,
                     ],
                 ]);
@@ -97,32 +113,100 @@ class AuthController extends Controller
     public function me(Request $request): JsonResponse
     {
         $user = $request->user();
+        $remote = DB::connection('mysql_remote');
 
-        $base = [
-            'id' => $user->id,
-            'fname' => $user->fname,
-            'mname' => $user->mname ?? '',
-            'lname' => $user->lname,
-            'email' => $user->email ?? '',
-            'phone' => $user->phone ?? '',
-        ];
+        $cacheKey = 'profile_' . ($user instanceof Student ? 'student' : 'staff') . '_' . $user->id;
 
-        if ($user instanceof Student) {
-            $base['type'] = 'student';
-            $base['passport'] = $user->passport;
-            $academic = StudentAcademic::where('student_id', $user->id)->latest()->first();
-            $base['matric_no'] = $academic?->matric_no;
-        } else {
-            $base['type'] = 'staff';
-            $base['passport'] = $user->passport ?? null;
-            $base['roles'] = AttendanceStaffRole::where('staff_id', $user->id)
-                ->with('role')
-                ->get()
-                ->pluck('role.name')
-                ->filter()
-                ->values()
-                ->toArray();
-        }
+        $base = Cache::remember($cacheKey, 300, function () use ($user, $remote) {
+            $base = [
+                'id' => $user->id,
+                'fname' => $user->fname,
+                'mname' => $user->mname ?? '',
+                'lname' => $user->lname,
+                'email' => $user->email ?? '',
+                'phone' => $user->phone ?? '',
+            ];
+
+            if ($user instanceof Student) {
+                $base['type'] = 'student';
+                $base['passport'] = $this->passportUrl($user->passport);
+
+                $academic = $remote->table('student_academics')
+                    ->where('student_id', $user->id)
+                    ->orderBy('id', 'desc')
+                    ->first();
+
+                $base['matric_no'] = $academic?->matric_no;
+                $base['level'] = $academic?->level;
+
+                if ($academic?->course_study_id) {
+                    $cs = $remote->table('course_studies')->where('id', $academic->course_study_id)->first();
+                    $base['program'] = $cs?->name;
+                }
+                if ($academic?->department_id) {
+                    $d = $remote->table('departments')->where('id', $academic->department_id)->first();
+                    $base['department'] = $d?->name;
+                }
+                if ($academic?->faculty_id) {
+                    $f = $remote->table('faculties')->where('id', $academic->faculty_id)->first();
+                    $base['faculty'] = $f?->name;
+                }
+
+                $s = $remote->table('students')->where('id', $user->id)->first();
+                if ($s) {
+                    $base['gender'] = $s->gender;
+                    $base['dob'] = $s->dob;
+                    $base['address'] = $s->address;
+                    $base['city'] = $s->city;
+                    $base['religion'] = $s->religion;
+                    $base['marital_status'] = $s->marital_status;
+                    $base['lga'] = $s->lga_name;
+                    if ($s->country_id) {
+                        $c = $remote->table('countries')->where('id', $s->country_id)->first();
+                        $base['country'] = $c?->name;
+                    }
+                    if ($s->state_id) {
+                        $st = $remote->table('states')->where('id', $s->state_id)->first();
+                        $base['state'] = $st?->name;
+                    }
+                }
+            } else {
+                $base['type'] = 'staff';
+                $base['passport'] = $this->passportUrl($user->passport);
+                $base['roles'] = AttendanceStaffRole::where('staff_id', $user->id)
+                    ->with('role')
+                    ->get()
+                    ->pluck('role.name')
+                    ->filter()
+                    ->values()
+                    ->toArray();
+
+                $s = $remote->table('staff')->where('id', $user->id)->first();
+                if ($s) {
+                    $base['title'] = $s->title;
+                    $base['gender'] = $s->gender;
+                    $base['dob'] = $s->dob;
+                    $base['address'] = $s->address;
+                    $base['city'] = $s->city;
+                    $base['maiden_name'] = $s->maiden_name;
+                    $base['religion'] = $s->religion;
+                    $base['marital_status'] = $s->marital_status;
+                    $base['p_email'] = $s->p_email;
+                    $base['staff_status'] = $s->status;
+                    $base['lga'] = $s->lga_name;
+                    if ($s->country_id) {
+                        $c = $remote->table('countries')->where('id', $s->country_id)->first();
+                        $base['country'] = $c?->name;
+                    }
+                    if ($s->state_id) {
+                        $st = $remote->table('states')->where('id', $s->state_id)->first();
+                        $base['state'] = $st?->name;
+                    }
+                }
+            }
+
+            return $base;
+        });
 
         return response()->json(['user' => $base]);
     }

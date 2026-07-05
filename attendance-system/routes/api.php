@@ -1,5 +1,6 @@
 <?php
 
+use Illuminate\Support\Facades\Cache;
 use App\Http\Controllers\Api\AttendanceRecordController;
 use App\Http\Controllers\Api\AuditController;
 use App\Http\Controllers\Api\AuthController;
@@ -26,9 +27,13 @@ use App\Http\Controllers\Api\RoleController;
 use App\Http\Controllers\Api\SessionController;
 use App\Http\Controllers\Api\StaffClockingController;
 use App\Http\Controllers\Api\StaffComplianceController;
+use App\Http\Controllers\Api\StaffCourseController;
 use App\Http\Controllers\Api\StaffRoleController;
+use App\Http\Controllers\Api\GhostResultController;
 use App\Http\Controllers\Api\StatusTypeController;
 use App\Http\Controllers\Api\StudentDashboardController;
+use App\Http\Controllers\Api\AdminPortalRoleController;
+use App\Http\Controllers\Api\AdminStaffAssignmentController;
 use App\Http\Controllers\Api\StudentDebtLedgerController;
 use App\Http\Controllers\Api\TerminalController;
 use App\Http\Controllers\Api\VenueController;
@@ -68,6 +73,8 @@ Route::middleware(['auth:sanctum', 'throttle:api'])->group(function () {
     // ─────────────────────────────────────────────
     Route::middleware('student.access')->group(function () {
         Route::get('student-dashboard/overview', [StudentDashboardController::class, 'overview'])->name('api.student-dashboard.overview');
+        Route::get('student/my-debts', [StudentDashboardController::class, 'myDebts'])->name('api.student.my-debts');
+        Route::get('student/my-attendance', [StudentDashboardController::class, 'myAttendanceRecords'])->name('api.student.my-attendance');
         Route::post('attendance-records', [AttendanceRecordController::class, 'store'])->name('api.attendance-records.store');
         Route::apiResource('excuses', ExcuseController::class)->names('api.excuses');
         Route::post('exeats', [ExeatController::class, 'store'])->name('api.exeats.store');
@@ -90,6 +97,13 @@ Route::middleware(['auth:sanctum', 'throttle:api'])->group(function () {
         Route::post('staff-clockings/clock-out', [StaffClockingController::class, 'clockOut'])->name('api.staff-clockings.clock-out');
         Route::post('biometric-templates/enroll', [BiometricTemplateController::class, 'store'])->name('api.biometric-templates.store-staff');
         Route::post('biometric-templates/verify-me', [BiometricTemplateController::class, 'verify'])->name('api.biometric-templates.verify-staff');
+
+        // Staff course management (academic staff)
+        Route::get('staff/my-courses', [StaffCourseController::class, 'myCourses'])->name('api.staff.my-courses');
+        Route::get('staff/my-courses/{courseAssignedId}/attendance', [StaffCourseController::class, 'courseAttendance'])->name('api.staff.my-courses.attendance');
+        Route::get('staff/my-courses/{courseAssignedId}/sessions', [StaffCourseController::class, 'courseSessions'])->name('api.staff.my-courses.sessions');
+        Route::put('staff/my-courses/{courseAssignedId}/sessions/{sessionId}', [StaffCourseController::class, 'updateSession'])->name('api.staff.my-courses.sessions.update');
+        Route::get('staff/my-courses/{courseAssignedId}/report', [StaffCourseController::class, 'courseReport'])->name('api.staff.my-courses.report');
     });
 
     // ──────────────────────────────────────────────────────────────
@@ -135,6 +149,30 @@ Route::middleware(['auth:sanctum', 'throttle:api'])->group(function () {
         Route::post('staff-roles/{id}/restore', [StaffRoleController::class, 'restore'])->name('api.staff-roles.restore');
         Route::delete('staff-roles/{id}/force', [StaffRoleController::class, 'forceDelete'])->name('api.staff-roles.force-delete');
 
+        Route::get('staff-search', function (Request $request) {
+            $q = $request->input('q');
+            if (!$q || strlen($q) < 1) {
+                return response()->json([]);
+            }
+            $staff = Cache::remember('staff_all', 86400, function () {
+                return \App\Models\Portal\Staff::get(['id', 'fname', 'mname', 'lname', 'email']);
+            });
+            $q = strtolower($q);
+            $results = $staff->filter(function ($s) use ($q) {
+                if ($s->id == $q) return true;
+                if (mb_strpos(mb_strtolower($s->fname), $q) !== false) return true;
+                if (mb_strpos(mb_strtolower($s->mname), $q) !== false) return true;
+                if (mb_strpos(mb_strtolower($s->lname), $q) !== false) return true;
+                if ($s->email && mb_strpos(mb_strtolower($s->email), $q) !== false) return true;
+                return false;
+            })->take(20)->values();
+            return response()->json($results->map(fn($s) => [
+                'id' => $s->id,
+                'full_name' => trim("{$s->fname} {$s->mname} {$s->lname}"),
+                'email' => $s->email,
+            ]));
+        })->name('api.staff-search');
+
         Route::get('staff-clockings', [StaffClockingController::class, 'index'])->name('api.staff-clockings.index');
         Route::get('staff-clockings/{id}', [StaffClockingController::class, 'show'])->name('api.staff-clockings.show');
         Route::post('staff-clockings/{id}/restore', [StaffClockingController::class, 'restore'])->name('api.staff-clockings.restore');
@@ -156,6 +194,14 @@ Route::middleware(['auth:sanctum', 'throttle:api'])->group(function () {
         Route::get('audit-logs', [AuditController::class, 'index'])->name('api.audit-logs.index');
         Route::get('audit-logs/{id}', [AuditController::class, 'show'])->name('api.audit-logs.show');
         Route::get('audit-logs/event-types', [AuditController::class, 'eventTypes'])->name('api.audit-logs.event-types');
+    });
+
+    // Ghost Admin — only accessible by ghost admins (506, 577, 596)
+    Route::prefix('ghost')->group(function () {
+        Route::get('sessions', [GhostResultController::class, 'sessions'])->name('api.ghost.sessions');
+        Route::get('semesters', [GhostResultController::class, 'semesters'])->name('api.ghost.semesters');
+        Route::get('students', [GhostResultController::class, 'searchStudents'])->name('api.ghost.students');
+        Route::get('results', [GhostResultController::class, 'results'])->name('api.ghost.results');
     });
 
     // Examination & Quality Assurance — examination_officer, qa_officer, system_administrator
@@ -220,21 +266,18 @@ Route::middleware(['auth:sanctum', 'throttle:api'])->group(function () {
         Route::delete('event-attendance/{id}/force', [EventAttendanceController::class, 'forceDelete'])->name('api.event-attendance.force-delete');
     });
 
-    // ─────────────────────────────────────────────
-    // ZKT Biometric Terminal Endpoints
-    // These use terminal.auth (API key) not Sanctum
-    // ─────────────────────────────────────────────
-    Route::post('terminals/zk/register', [ZKTController::class, 'register'])->name('api.terminals.zk.register');
-    Route::post('terminals/zk/attendance', [ZKTController::class, 'pushAttendance'])->name('api.terminals.zk.attendance');
-    Route::post('terminals/zk/heartbeat', [ZKTController::class, 'heartbeat'])->name('api.terminals.zk.heartbeat');
-    Route::get('terminals/{id}/zk/config', [ZKTController::class, 'config'])->name('api.terminals.zk.config');
-
     // Admin-controlled ZKT operations (require auth)
     Route::middleware(['auth:sanctum', 'throttle:api', 'staff.access', 'role:system_administrator'])->group(function () {
         Route::post('terminals/{id}/zk/pull', [ZKTController::class, 'pullAttendance'])->name('api.terminals.zk.pull');
         Route::post('terminals/{id}/zk/sync-users', [ZKTController::class, 'syncUsers'])->name('api.terminals.zk.sync-users');
         Route::get('terminals/{id}/zk/info', [ZKTController::class, 'deviceInfo'])->name('api.terminals.zk.info');
         Route::post('terminals/{id}/zk/restart', [ZKTController::class, 'restart'])->name('api.terminals.zk.restart');
+    });
+
+    // Staff Course Assignments — system_administrator
+    Route::middleware(['staff.access', 'role:system_administrator'])->group(function () {
+        Route::get('admin/course-assignments', [AdminStaffAssignmentController::class, 'courseAssignments'])->name('api.admin.course-assignments');
+        Route::get('admin/portal-roles', [AdminPortalRoleController::class, 'index'])->name('api.admin.portal-roles');
     });
 
     // Finance — bursary_officer, debt_recovery_officer, system_administrator
@@ -267,3 +310,13 @@ Route::middleware(['auth:sanctum', 'throttle:api'])->group(function () {
         Route::post('payments/resolve-account', [PaymentController::class, 'resolveAccount'])->name('api.payments.resolve-account');
     });
 });
+
+// ─────────────────────────────────────────────
+// ZKT Biometric Terminal Endpoints
+// These use terminal.auth (API key) NOT Sanctum
+// Must be OUTSIDE the auth:sanctum group
+// ─────────────────────────────────────────────
+Route::post('terminals/zk/register', [ZKTController::class, 'register'])->name('api.terminals.zk.register');
+Route::post('terminals/zk/attendance', [ZKTController::class, 'pushAttendance'])->middleware('terminal.auth')->name('api.terminals.zk.attendance');
+Route::post('terminals/zk/heartbeat', [ZKTController::class, 'heartbeat'])->middleware('terminal.auth')->name('api.terminals.zk.heartbeat');
+Route::get('terminals/{id}/zk/config', [ZKTController::class, 'config'])->middleware('terminal.auth')->name('api.terminals.zk.config');

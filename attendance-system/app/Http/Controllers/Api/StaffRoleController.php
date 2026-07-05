@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Attendance\AttendanceStaffRole;
+use App\Models\Portal\Staff;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
@@ -20,7 +21,26 @@ class StaffRoleController extends Controller
             $query->where('staff_id', $request->staff_id);
         }
 
-        $records = $query->orderBy('created_at', 'desc')->paginate($perPage);
+        if ($request->filled('search')) {
+            $search = $request->search;
+            if (is_numeric($search)) {
+                $query->where('staff_id', $search);
+            } else {
+                $matchingIds = Staff::where(function ($q) use ($search) {
+                    $q->where('fname', 'like', "%{$search}%")
+                      ->orWhere('mname', 'like', "%{$search}%")
+                      ->orWhere('lname', 'like', "%{$search}%")
+                      ->orWhere('email', 'like', "%{$search}%");
+                })->pluck('id')->toArray();
+                if (!empty($matchingIds)) {
+                    $query->whereIn('staff_id', $matchingIds);
+                } else {
+                    $query->whereRaw('1 = 0');
+                }
+            }
+        }
+
+        $records = $query->orderBy('assigned_at', 'desc')->paginate($perPage);
         return response()->json([
             'data' => $records->items(),
             'meta' => ['current_page' => $records->currentPage(), 'last_page' => $records->lastPage(), 'per_page' => $records->perPage(), 'total' => $records->total()],

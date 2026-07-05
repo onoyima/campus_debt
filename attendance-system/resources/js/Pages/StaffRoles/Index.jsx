@@ -15,6 +15,7 @@ export default function StaffRolesIndex() {
   const [page, setPage] = useState(1)
   const [search, setSearch] = useState('')
   const [actionLoading, setActionLoading] = useState({})
+  const [fetchError, setFetchError] = useState(null)
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -31,12 +32,14 @@ export default function StaffRolesIndex() {
 
   const fetchStaffRoles = async (params = {}) => {
     setLoading(true)
+    setFetchError(null)
     try {
-      const res = await api.get('/staff-roles', { params: { ...filter, search: search || undefined, page, per_page: '15', trashed: showTrashed ? '1' : undefined, ...params } })
+      const res = await api.get('/staff-roles', { params: { ...filter, search: search || undefined, page, per_page: '15', include: 'role', trashed: showTrashed ? '1' : undefined, ...params } })
       setStaffRoles(res.data.data || res.data)
-      setMeta(res.data)
-    } catch {
-      // ignore
+      setMeta(res.data.meta || res.data)
+    } catch (err) {
+      setFetchError(err.response?.data?.message || err.message || 'Failed to load staff roles')
+      setStaffRoles([])
     } finally {
       setLoading(false)
     }
@@ -87,7 +90,7 @@ export default function StaffRolesIndex() {
 
   const columns = [
     { key: 'staff_id', label: 'Staff ID' },
-    { key: 'role_name', label: 'Role' },
+    { key: 'role', label: 'Role', render: (_, row) => row.role?.display_name || row.role?.name || '-' },
     { key: 'assigned_at', label: 'Assigned At' },
     {
       key: 'trashed',
@@ -146,6 +149,9 @@ export default function StaffRolesIndex() {
           </button>
         </div>
       </div>
+      {fetchError && (
+        <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm">{fetchError}</div>
+      )}
       <div className="bg-white rounded-lg shadow">
         <Table columns={columns} data={staffRoles} loading={loading} onEdit={(row) => window.location.href = `/staff-roles/${row.id}/edit`} onDelete={handleDelete} />
         {!loading && <Pagination meta={meta} onPageChange={setPage} />}

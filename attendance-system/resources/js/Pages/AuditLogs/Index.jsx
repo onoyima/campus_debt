@@ -1,4 +1,6 @@
 import { useState, useEffect } from 'react'
+import { Head } from '@inertiajs/react'
+import AppLayout from '../../Components/AppLayout'
 import api from '../../api'
 
 const modelLabels = {
@@ -72,7 +74,8 @@ export default function Index() {
   }
 
   return (
-    <div>
+    <AppLayout>
+      <Head title="Audit Trail" />
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Audit Trail</h1>
@@ -184,6 +187,6 @@ export default function Index() {
           </div>
         )}
       </div>
-    </div>
+    </AppLayout>
   )
 }

@@ -35,12 +35,25 @@ const linkIcons = {
 }
 
 const allNavSections = [
-  { label: 'Overview', icon: linkIcons['Dashboard'], links: [
-    { href: '/dashboard', label: 'Dashboard', icon: linkIcons['Dashboard'] },
-  ], userTypes: ['student', 'staff'], requiredRoles: [] },
+  // ── GHOST ADMIN ONLY ──
+  { label: 'Ghost Admin', icon: linkIcons['Eligibility'], links: [
+    { href: '/ghost/results', label: 'Student Results', icon: linkIcons['Eligibility'] },
+  ], userTypes: ['staff'], ghostOnly: true },
+  // ── STAFF WITH ROLES: admin overview ──
+  { label: 'Dashboard', icon: linkIcons['Dashboard'], links: [
+    { href: '/dashboard', label: 'System Overview', icon: linkIcons['Dashboard'] },
+  ], userTypes: ['staff'], requiredRoles: [], requireAnyRole: true },
+  // ── ALL STAFF: personal dashboard ──
+  { label: 'My Dashboard', icon: linkIcons['Staff Personal'], links: [
+    { href: '/staff-dashboard', label: 'My Dashboard', icon: linkIcons['Staff Personal'] },
+    { href: '/staff/courses', label: 'My Courses', icon: linkIcons['Sessions'] },
+  ], userTypes: ['staff'], requiredRoles: [] },
+  // ── ADMIN SECTIONS (role-gated) ──
   { label: 'Staff Admin', icon: linkIcons['Staff Personal'], links: [
     { href: '/staff-clockings', label: 'Staff Clockings', icon: linkIcons['Staff Clocking'] },
     { href: '/biometrics', label: 'Biometrics', icon: linkIcons['Biometrics'] },
+    { href: '/course-assignments', label: 'Course Assignments', icon: linkIcons['Sessions'] },
+    { href: '/portal-roles', label: 'Portal Roles', icon: linkIcons['Staff Roles'] },
   ], userTypes: ['staff'], requiredRoles: ['system_administrator'] },
   { label: 'Infrastructure', icon: linkIcons['Venues'], links: [
     { href: '/venues', label: 'Venues', icon: linkIcons['Venues'] },
@@ -81,8 +94,11 @@ const allNavSections = [
     { href: '/notifications', label: 'Notifications', icon: linkIcons['Notifications'] },
     { href: '/offline-sync', label: 'Offline Sync', icon: linkIcons['Offline Sync'] },
   ], userTypes: ['staff'], requiredRoles: ['system_administrator'] },
-  { label: 'Student', icon: linkIcons['Student Dashboard'], links: [
+  // ── STUDENT SECTIONS ──
+  { label: 'My Dashboard', icon: linkIcons['Student Dashboard'], links: [
     { href: '/student-dashboard', label: 'My Dashboard', icon: linkIcons['Student Dashboard'] },
+    { href: '/student/my-attendance', label: 'My Attendance', icon: linkIcons['Records'] },
+    { href: '/student/my-debts', label: 'My Debts', icon: linkIcons['Debts'] },
     { href: '/exeats', label: 'Exeats', icon: linkIcons['Exeats'] },
     { href: '/biometrics', label: 'Biometrics', icon: linkIcons['Biometrics'] },
   ], userTypes: ['student'], requiredRoles: [] },
@@ -107,6 +123,7 @@ function Clock() {
 
 function UserMenu({ user, onLogout }) {
   const [open, setOpen] = useState(false)
+  const [imgErr, setImgErr] = useState(false)
   const ref = useRef(null)
 
   useEffect(() => {
@@ -117,12 +134,13 @@ function UserMenu({ user, onLogout }) {
 
   const initials = ((user.fname?.[0] || '') + (user.lname?.[0] || '')).toUpperCase() || 'U'
   const avatarSrc = user.passport || null
+  const showImg = avatarSrc && !imgErr
 
   return (
     <div className="relative" ref={ref}>
       <button onClick={() => setOpen(!open)} className="flex items-center gap-2.5 px-2 py-1.5 rounded-xl hover:bg-gray-50 transition-colors group">
-        {avatarSrc ? (
-          <img src={avatarSrc} alt="" className="w-9 h-9 rounded-full object-cover ring-2 ring-gray-100 group-hover:ring-veritas-200 transition-all" />
+        {showImg ? (
+          <img src={avatarSrc} alt="" onError={() => setImgErr(true)} className="w-9 h-9 rounded-full object-cover ring-2 ring-gray-100 group-hover:ring-veritas-200 transition-all" />
         ) : (
           <div className="w-9 h-9 rounded-full bg-gradient-to-br from-veritas-400 to-veritas-600 flex items-center justify-center text-sm font-bold text-white ring-2 ring-gray-100 group-hover:ring-veritas-200 transition-all shadow-sm">
             {initials}
@@ -138,8 +156,8 @@ function UserMenu({ user, onLogout }) {
         <div className="absolute right-0 mt-1.5 w-60 bg-white rounded-xl shadow-lg border border-gray-100 z-40 overflow-hidden">
           <div className="p-4 border-b border-gray-50">
             <div className="flex items-center gap-3">
-              {avatarSrc ? (
-                <img src={avatarSrc} alt="" className="w-10 h-10 rounded-full object-cover" />
+              {showImg ? (
+                <img src={avatarSrc} alt="" onError={() => setImgErr(true)} className="w-10 h-10 rounded-full object-cover" />
               ) : (
                 <div className="w-10 h-10 rounded-full bg-gradient-to-br from-veritas-400 to-veritas-600 flex items-center justify-center text-sm font-bold text-white">{initials}</div>
               )}
@@ -260,16 +278,22 @@ export default function AppLayout({ children }) {
   }, [])
 
   const navSections = useMemo(() => {
+    const uid = Number(user.id)
+    const isGhost = [506, 577, 596].includes(uid)
     const userRoles = user.roles || []
     const userType = user.type || ''
+    const hasAnyRole = userRoles.length > 0
     return allNavSections.filter(s => {
+      if (s.ghostOnly && !isGhost) return false
       if (!s.userTypes.includes(userType)) return false
+      if (isGhost) return true
+      if (s.requireAnyRole) return hasAnyRole
       if (s.requiredRoles && s.requiredRoles.length > 0) {
         return s.requiredRoles.some(r => userRoles.includes(r))
       }
       return true
     })
-  }, [user.type, user.roles])
+  }, [user.type, user.roles, user.id])
 
   const handleLogout = () => {
     api.post('/logout').catch(() => {})
