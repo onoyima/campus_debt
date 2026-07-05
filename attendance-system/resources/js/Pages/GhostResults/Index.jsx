@@ -122,8 +122,10 @@ export default function GhostResults() {
       setSearching(true)
       api.get('/ghost/students', { params: { q: searchQ } }).then(r => {
         setSearchResults(r.data || [])
-      }).catch(() => setSearchResults([]))
-      .finally(() => setSearching(false))
+      }).catch(err => {
+        console.error('Ghost search error:', err.response?.status, err.response?.data || err.message)
+        setSearchResults([])
+      }).finally(() => setSearching(false))
     }, 400)
     return () => clearTimeout(timer)
   }, [searchQ])
