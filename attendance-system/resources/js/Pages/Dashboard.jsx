@@ -1,7 +1,9 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { Head } from '@inertiajs/react'
 import AppLayout from '../Components/AppLayout'
 import api from '../api'
+import StaffDashboard from './StaffDashboard/Index'
+import StudentDashboard from './StudentDashboard/Index'
 
 const StatCard = ({ title, value, subtitle, icon: Icon, color = 'veritas', index }) => {
   const colorMap = {
@@ -15,10 +17,8 @@ const StatCard = ({ title, value, subtitle, icon: Icon, color = 'veritas', index
   const c = colorMap[color] || colorMap.veritas
   const numeric = typeof value === 'number' ? value : parseFloat(String(value).replace(/[^0-9.-]/g, '')) || 0
   const barWidth = `${Math.min(100, Math.max(5, (numeric / 5000) * 100))}%`
-
   return (
-    <div
-      className={`group relative bg-white rounded-2xl border border-gray-100 p-6 hover:shadow-lg hover:shadow-${color}-500/5 transition-all duration-500 hover:-translate-y-1 cursor-default overflow-hidden`}
+    <div className={`group relative bg-white rounded-2xl border border-gray-100 p-6 hover:shadow-lg hover:shadow-${color}-500/5 transition-all duration-500 hover:-translate-y-1 cursor-default overflow-hidden`}
       style={{ animation: `fadeInUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) ${index * 0.1}s both` }}>
       <div className="absolute top-0 right-0 w-32 h-32 -translate-y-8 translate-x-8">
         <div className={`w-full h-full rounded-full ${c.bg} opacity-30 blur-2xl`} />
@@ -40,32 +40,6 @@ const StatCard = ({ title, value, subtitle, icon: Icon, color = 'veritas', index
   )
 }
 
-const ActivityItem = ({ icon, label, time, color = 'gray' }) => (
-  <div className="flex items-center gap-3 py-3 border-b border-gray-50 last:border-0 group hover:bg-gray-50/50 px-3 -mx-3 rounded-xl transition-colors">
-    <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-sm ${color === 'emerald' ? 'bg-emerald-50 text-emerald-600' : color === 'amber' ? 'bg-amber-50 text-amber-600' : color === 'blue' ? 'bg-blue-50 text-blue-600' : 'bg-gray-50 text-gray-500'}`}>
-      {icon}
-    </div>
-    <div className="flex-1 min-w-0">
-      <p className="text-sm font-medium text-gray-700 truncate">{label}</p>
-      <p className="text-xs text-gray-400">{time}</p>
-    </div>
-  </div>
-)
-
-const QuickActionCard = ({ label, href, icon: Icon, desc }) => (
-  <a href={href}
-    className="relative group flex items-start gap-4 p-4 rounded-xl bg-white border border-gray-100 hover:border-veritas-200 hover:shadow-md hover:shadow-veritas-500/5 transition-all duration-300">
-    <div className="p-2.5 rounded-xl bg-veritas-50 text-veritas-600 shrink-0 group-hover:scale-110 group-hover:bg-veritas-100 transition-all duration-300">
-      <Icon className="w-5 h-5" />
-    </div>
-    <div>
-      <p className="text-sm font-semibold text-gray-900 group-hover:text-veritas-700 transition-colors">{label}</p>
-      {desc && <p className="text-xs text-gray-400 mt-0.5">{desc}</p>}
-    </div>
-    <svg className="w-4 h-4 text-gray-300 group-hover:text-veritas-400 group-hover:translate-x-0.5 transition-all ml-auto mt-1.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
-  </a>
-)
-
 function OverviewIcon({ className }) { return <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zm10 0a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zm10 0a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" /></svg> }
 function TerminalIcon({ className }) { return <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 17.25v1.007a3 3 0 01-.879 2.122L7.5 21h9l-.621-.621A3 3 0 0115 18.257V17.25m6-12V15a2.25 2.25 0 01-2.25 2.25H5.25A2.25 2.25 0 013 15V5.25m18 0A2.25 2.25 0 0018.75 3H5.25A2.25 2.25 0 003 5.25m18 0V12a2.25 2.25 0 01-2.25 2.25H5.25A2.25 2.25 0 013 12V5.25" /></svg> }
 function CalendarIcon({ className }) { return <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" /></svg> }
@@ -73,7 +47,7 @@ function ClipboardIcon({ className }) { return <svg className={className} fill="
 function ScaleIcon({ className }) { return <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 3v17.25m0 0c-1.472 0-2.882.265-4.185.75M12 20.25c1.472 0 2.882.265 4.185.75M18.75 4.97A48.416 48.416 0 0012 4.5c-2.291 0-4.545.16-6.75.47m13.5 0c1.01.143 2.01.317 3 .52m-3-.52l2.62 10.726c.122.499-.106 1.028-.589 1.202a5.988 5.988 0 01-2.031.352 5.988 5.988 0 01-2.031-.352c-.483-.174-.711-.703-.589-1.202L18.75 4.971zm-13.5 0A48.5 48.5 0 0112 4.5c2.291 0 4.545.16 6.75.47m-13.5 0l-2.62 10.726c-.122.499.106 1.028.589 1.202a5.989 5.989 0 002.031.352 5.989 5.989 0 002.031-.352c.483-.174.711-.703.589-1.202L5.25 4.971z" /></svg> }
 function AcademicIcon({ className }) { return <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4.26 10.147a60.438 60.438 0 0 0-.491 6.347A48.62 48.62 0 0 1 12 20.904a48.62 48.62 0 0 1 8.232-4.41 60.46 60.46 0 0 0-.491-6.347m-15.482 0a50.636 50.636 0 0 0-2.658-.813A59.906 59.906 0 0 1 12 3.493a59.903 59.903 0 0 1 10.399 5.84c-.896.248-1.783.52-2.658.814m-15.482 0A50.717 50.717 0 0 1 12 13.489a50.702 50.702 0 0 1 7.74-3.342" /></svg> }
 
-export default function Dashboard() {
+function SystemOverview() {
   const [stats, setStats] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -103,8 +77,8 @@ export default function Dashboard() {
     { title: 'Active Terminals', value: stats?.active_terminals ?? 0, subtitle: 'Hardware online', icon: TerminalIcon, color: 'blue' },
     { title: 'Sessions Today', value: stats?.sessions_today ?? 0, subtitle: 'Scheduled sessions', icon: CalendarIcon, color: 'amber' },
     { title: 'Records Today', value: stats?.records_today ?? 0, subtitle: 'Attendance captured', icon: ClipboardIcon, color: 'violet' },
-    { title: 'Outstanding Debts', value: `₦${(stats?.outstanding_debts ?? 0).toLocaleString()}`, subtitle: 'Unpaid penalties', icon: ScaleIcon, color: 'rose' },
-    { title: 'Eligible Students', value: stats?.eligible_students ?? 0, subtitle: 'Exam cleared', icon: AcademicIcon, color: 'cyan' },
+    { title: 'Outstanding Debts', value: `₦${(stats?.outstanding_debt_amount ?? 0).toLocaleString()}`, subtitle: `${stats?.outstanding_debts ?? 0} unpaid`, icon: ScaleIcon, color: 'rose' },
+    { title: 'Eligible Students', value: `${stats?.eligible_students ?? 0}/${stats?.total_students ?? 0}`, subtitle: 'Exam cleared', icon: AcademicIcon, color: 'cyan' },
   ]
 
   const actions = [
@@ -114,20 +88,14 @@ export default function Dashboard() {
     { label: 'Biometrics', href: '/biometrics', icon: TerminalIcon, desc: 'Manage biometric devices' },
   ]
 
-  const activities = [
-    { icon: '📱', label: 'Biometric enrollment completed', time: '2 min ago', color: 'emerald' },
-    { icon: '📋', label: 'New attendance record batch synced', time: '5 min ago', color: 'blue' },
-    { icon: '💰', label: 'Debt payment verified', time: '12 min ago', color: 'amber' },
-    { icon: '🎓', label: 'Eligibility check run for 42 students', time: '18 min ago', color: 'emerald' },
-    { icon: '⚠️', label: 'Terminal T-003 went offline', time: '25 min ago', color: 'amber' },
-  ]
+  const activities = stats?.recent_activities ?? []
+
+  const allHealthy = Object.values(stats?.system_health ?? {}).every(s => s?.healthy)
 
   return (
-    <AppLayout>
-      <Head title="Dashboard" />
-
+    <>
+      <Head title="System Dashboard" />
       <div className="max-w-7xl mx-auto">
-        {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <div className="flex items-center gap-4">
             <div className="relative">
@@ -139,7 +107,7 @@ export default function Dashboard() {
               <div className="absolute -top-1 -right-1 w-4 h-4 bg-green-400 border-2 border-white rounded-full animate-pulse" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Dashboard</h1>
+              <h1 className="text-2xl font-bold text-gray-900 tracking-tight">System Dashboard</h1>
               <p className="text-sm text-gray-400 mt-0.5">Attendance system overview</p>
             </div>
           </div>
@@ -154,7 +122,6 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Loading */}
         {loading && (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {[...Array(6)].map((_, i) => (
@@ -173,7 +140,6 @@ export default function Dashboard() {
           </div>
         )}
 
-        {/* Error */}
         {error && !loading && (
           <div className="bg-gradient-to-r from-red-50 to-red-50/50 border border-red-200 rounded-2xl p-6 mb-6 flex items-center gap-4">
             <div className="w-10 h-10 rounded-xl bg-red-100 flex items-center justify-center shrink-0">
@@ -186,7 +152,6 @@ export default function Dashboard() {
           </div>
         )}
 
-        {/* Stats Grid */}
         {!loading && !error && stats && (
           <>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 mb-8">
@@ -194,9 +159,7 @@ export default function Dashboard() {
                 <StatCard key={card.title} {...card} index={i} />
               ))}
             </div>
-
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              {/* Quick Actions */}
               <div className="lg:col-span-2 space-y-5">
                 <div className="bg-white rounded-2xl border border-gray-100 p-6">
                   <div className="flex items-center justify-between mb-5">
@@ -205,40 +168,44 @@ export default function Dashboard() {
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     {actions.map((action) => (
-                      <QuickActionCard key={action.href} {...action} />
+                      <a key={action.href} href={action.href}
+                        className="relative group flex items-start gap-4 p-4 rounded-xl bg-white border border-gray-100 hover:border-veritas-200 hover:shadow-md hover:shadow-veritas-500/5 transition-all duration-300">
+                        <div className="p-2.5 rounded-xl bg-veritas-50 text-veritas-600 shrink-0 group-hover:scale-110 group-hover:bg-veritas-100 transition-all duration-300">
+                          <action.icon className="w-5 h-5" />
+                        </div>
+                        <div>
+                          <p className="text-sm font-semibold text-gray-900 group-hover:text-veritas-700 transition-colors">{action.label}</p>
+                          {action.desc && <p className="text-xs text-gray-400 mt-0.5">{action.desc}</p>}
+                        </div>
+                        <svg className="w-4 h-4 text-gray-300 group-hover:text-veritas-400 group-hover:translate-x-0.5 transition-all ml-auto mt-1.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+                      </a>
                     ))}
                   </div>
                 </div>
-
-                {/* System Health */}
                 <div className="bg-white rounded-2xl border border-gray-100 p-6">
                   <div className="flex items-center justify-between mb-5">
                     <h2 className="text-base font-semibold text-gray-900">System Health</h2>
                     <div className="flex items-center gap-2">
-                      <span className="w-1.5 h-1.5 rounded-full bg-green-400" />
-                      <span className="text-xs text-gray-400">All systems nominal</span>
+                      <span className={`w-1.5 h-1.5 rounded-full ${allHealthy ? 'bg-green-400' : 'bg-amber-400'}`} />
+                      <span className="text-xs text-gray-400">{allHealthy ? 'All systems nominal' : 'Issues detected'}</span>
                     </div>
                   </div>
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                    {[
-                      { label: 'API', status: 'Operational', color: 'green' },
-                      { label: 'Database', status: 'Connected', color: 'green' },
-                      { label: 'Biometrics', status: 'Online', color: 'green' },
-                      { label: 'Sync', status: 'Active', color: 'green' },
-                    ].map((s) => (
-                      <div key={s.label} className="text-center p-3 rounded-xl bg-gray-50">
-                        <p className="text-xs font-semibold text-gray-500 mb-1">{s.label}</p>
-                        <div className="flex items-center justify-center gap-1.5">
-                          <span className={`w-1.5 h-1.5 rounded-full bg-${s.color}-400`} />
-                          <span className="text-sm font-medium text-gray-900">{s.status}</span>
+                    {Object.entries(stats?.system_health ?? {}).map(([key, s]) => {
+                      const color = s?.healthy ? 'green' : 'red'
+                      return (
+                        <div key={key} className="text-center p-3 rounded-xl bg-gray-50">
+                          <p className="text-xs font-semibold text-gray-500 mb-1 capitalize">{key}</p>
+                          <div className="flex items-center justify-center gap-1.5">
+                            <span className={`w-1.5 h-1.5 rounded-full bg-${color}-400`} />
+                            <span className="text-sm font-medium text-gray-900">{s?.status ?? 'Unknown'}</span>
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      )
+                    })}
                   </div>
                 </div>
               </div>
-
-              {/* Recent Activity */}
               <div className="bg-white rounded-2xl border border-gray-100 p-6">
                 <div className="flex items-center justify-between mb-4">
                   <h2 className="text-base font-semibold text-gray-900">Activity</h2>
@@ -246,7 +213,17 @@ export default function Dashboard() {
                 </div>
                 <div className="divide-y divide-gray-50">
                   {activities.map((a, i) => (
-                    <ActivityItem key={i} {...a} />
+                    <div key={i} className="flex items-center gap-3 py-3 border-b border-gray-50 last:border-0 group hover:bg-gray-50/50 px-3 -mx-3 rounded-xl transition-colors">
+                      <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-sm ${a.type === 'attendance' ? 'bg-emerald-50 text-emerald-600' : a.type === 'staff_clocking' ? 'bg-blue-50 text-blue-600' : a.type === 'event_attendance' ? 'bg-amber-50 text-amber-600' : 'bg-gray-50 text-gray-500'}`}>
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d={a.type === 'attendance' ? 'M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 002.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 00-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 00.75-.75 2.25 2.25 0 00-.1-.664m-5.8 0A2.251 2.251 0 0113.5 2.25H15a2.25 2.25 0 012.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m0 0H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V9.375c0-.621-.504-1.125-1.125-1.125H8.25zM6.75 12h.008v.008H6.75V12zm0 3h.008v.008H6.75V15zm0 3h.008v.008H6.75V18z' : a.type === 'staff_clocking' ? 'M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z' : 'M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z'} />
+                        </svg>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-gray-700 truncate">{a.label}</p>
+                        <p className="text-xs text-gray-400">{a.description} · {a.created_at}</p>
+                      </div>
+                    </div>
                   ))}
                 </div>
               </div>
@@ -254,7 +231,6 @@ export default function Dashboard() {
           </>
         )}
 
-        {/* Empty State */}
         {!loading && !error && !stats && (
           <div className="flex flex-col items-center justify-center py-24 text-center">
             <div className="w-20 h-20 rounded-2xl bg-veritas-50 flex items-center justify-center mb-6">
@@ -267,13 +243,56 @@ export default function Dashboard() {
           </div>
         )}
       </div>
+      <style>{`@keyframes fadeInUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }`}</style>
+    </>
+  )
+}
 
-      <style>{`
-        @keyframes fadeInUp {
-          from { opacity: 0; transform: translateY(20px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-      `}</style>
-    </AppLayout>
+function getCurrentUser() {
+  try { return JSON.parse(localStorage.getItem('user') || '{}') } catch { return {} }
+}
+
+export default function Dashboard() {
+  const [user, setUser] = useState(getCurrentUser)
+  const [resolved, setResolved] = useState(false)
+
+  useEffect(() => {
+    const token = localStorage.getItem('token')
+    if (!token) { window.location.href = '/login'; return }
+
+    if (!user.id) {
+      api.get('/me').then(r => {
+        const u = r.data.user
+        localStorage.setItem('user', JSON.stringify(u))
+        setUser(u)
+      }).catch(() => { window.location.href = '/login' })
+    }
+    setResolved(true)
+  }, [])
+
+  if (!resolved) return <AppLayout><div className="flex items-center justify-center py-24"><div className="w-8 h-8 border-2 border-veritas-500 border-t-transparent rounded-full animate-spin" /></div></AppLayout>
+
+  const ghostAdminIds = [506, 577, 596]
+  const userRoles = user.roles || []
+  const isGhostAdmin = ghostAdminIds.includes(Number(user.id))
+  const isSystemAdmin = userRoles.includes('system_administrator')
+
+  const showSystemOverview = isGhostAdmin || isSystemAdmin
+
+  let Content
+  if (showSystemOverview) {
+    Content = <AppLayout><SystemOverview /></AppLayout>
+  } else if (user.type === 'staff') {
+    Content = <StaffDashboard />
+  } else if (user.type === 'student') {
+    Content = <StudentDashboard />
+  } else {
+    Content = <AppLayout><SystemOverview /></AppLayout>
+  }
+
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center py-24"><div className="w-8 h-8 border-2 border-veritas-500 border-t-transparent rounded-full animate-spin" /></div>}>
+      {Content}
+    </Suspense>
   )
 }

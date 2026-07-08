@@ -23,7 +23,7 @@ class ExeatLeaveAutoMarkService
 
         $absentStatus = AttendanceStatusType::where('code', 'absent')->first();
 
-        $query = DB::table('exeat_requests')
+        $query = DB::connection('mysql_remote')->table('exeat_requests')
             ->where('is_expired', false)
             ->whereNotIn('status', ['rejected'])
             ->whereExists(function ($q) {

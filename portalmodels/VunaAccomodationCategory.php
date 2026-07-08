@@ -17,7 +17,6 @@ class VunaAccomodationCategory extends Model
         'flat',
         'rooms',
         'capacity',
-        'vu_session_id',
         'is_processed'
     ];
 

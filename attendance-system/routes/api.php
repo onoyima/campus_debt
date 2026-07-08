@@ -8,6 +8,8 @@ use App\Http\Controllers\Api\BiometricTemplateController;
 use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\DebtController;
 use App\Http\Controllers\Api\DebtPaymentController;
+use App\Http\Controllers\Api\DeviceCommandController;
+use App\Http\Controllers\Api\NodeServiceController;
 use App\Http\Controllers\Api\EligibilityEngineController;
 use App\Http\Controllers\Api\EventAttendanceController;
 use App\Http\Controllers\Api\EventCategoryController;
@@ -30,6 +32,8 @@ use App\Http\Controllers\Api\StaffComplianceController;
 use App\Http\Controllers\Api\StaffCourseController;
 use App\Http\Controllers\Api\StaffRoleController;
 use App\Http\Controllers\Api\GhostResultController;
+use App\Http\Controllers\Api\LiveFeedController;
+use App\Http\Controllers\Api\TargetAudienceController;
 use App\Http\Controllers\Api\StatusTypeController;
 use App\Http\Controllers\Api\StudentDashboardController;
 use App\Http\Controllers\Api\AdminPortalRoleController;
@@ -56,6 +60,10 @@ RateLimiter::for('api', function (Request $request) {
 
 Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:login');
 
+// Terminal-facing: active institutional events (MUST be before auth:sanctum group
+// to avoid conflict with GET institutional-events/{id} from apiResource)
+Route::get('institutional-events/current', [InstitutionalEventController::class, 'current'])->middleware('terminal.auth')->name('api.institutional-events.current');
+
 Route::middleware(['auth:sanctum', 'throttle:api'])->group(function () {
     Route::get('/me', [AuthController::class, 'me']);
     Route::post('/logout', [AuthController::class, 'logout']);
@@ -73,6 +81,7 @@ Route::middleware(['auth:sanctum', 'throttle:api'])->group(function () {
     // ─────────────────────────────────────────────
     Route::middleware('student.access')->group(function () {
         Route::get('student-dashboard/overview', [StudentDashboardController::class, 'overview'])->name('api.student-dashboard.overview');
+        Route::get('student-dashboard/my-events', [StudentDashboardController::class, 'myEvents'])->name('api.student-dashboard.my-events');
         Route::get('student/my-debts', [StudentDashboardController::class, 'myDebts'])->name('api.student.my-debts');
         Route::get('student/my-attendance', [StudentDashboardController::class, 'myAttendanceRecords'])->name('api.student.my-attendance');
         Route::post('attendance-records', [AttendanceRecordController::class, 'store'])->name('api.attendance-records.store');
@@ -92,11 +101,26 @@ Route::middleware(['auth:sanctum', 'throttle:api'])->group(function () {
     // Any authenticated staff can access these
     // ─────────────────────────────────────────────
     Route::middleware('staff.access')->group(function () {
+        Route::get('staff-dashboard/overview', [StaffClockingController::class, 'overview'])->name('api.staff-dashboard.overview');
+        Route::get('staff-dashboard/my-events', [StaffClockingController::class, 'myEvents'])->name('api.staff-dashboard.my-events');
         Route::get('staff-clockings/my', [StaffClockingController::class, 'myClockings'])->name('api.staff-clockings.my');
         Route::post('staff-clockings/clock-in', [StaffClockingController::class, 'clockIn'])->name('api.staff-clockings.clock-in');
         Route::post('staff-clockings/clock-out', [StaffClockingController::class, 'clockOut'])->name('api.staff-clockings.clock-out');
         Route::post('biometric-templates/enroll', [BiometricTemplateController::class, 'store'])->name('api.biometric-templates.store-staff');
         Route::post('biometric-templates/verify-me', [BiometricTemplateController::class, 'verify'])->name('api.biometric-templates.verify-staff');
+
+        // Node.js service proxy (all staff with access)
+        Route::prefix('node')->group(function () {
+            Route::get('health', [NodeServiceController::class, 'health'])->name('api.node.health');
+            Route::get('config', [NodeServiceController::class, 'config'])->name('api.node.config');
+            Route::get('devices', [NodeServiceController::class, 'devices'])->name('api.node.devices');
+            Route::get('devices/connected', [NodeServiceController::class, 'connectedDevices'])->name('api.node.devices.connected');
+            Route::post('devices/connect', [NodeServiceController::class, 'connect'])->name('api.node.devices.connect');
+            Route::post('devices/disconnect', [NodeServiceController::class, 'disconnect'])->name('api.node.devices.disconnect');
+            Route::get('cache/stats', [NodeServiceController::class, 'cacheStats'])->name('api.node.cache.stats');
+            Route::post('devices/test', [NodeServiceController::class, 'testDevice'])->name('api.node.devices.test');
+            Route::post('devices/pull', [NodeServiceController::class, 'pullAttendance'])->name('api.node.devices.pull');
+        });
 
         // Staff course management (academic staff)
         Route::get('staff/my-courses', [StaffCourseController::class, 'myCourses'])->name('api.staff.my-courses');
@@ -120,6 +144,10 @@ Route::middleware(['auth:sanctum', 'throttle:api'])->group(function () {
         Route::apiResource('terminals', TerminalController::class)->names('api.terminals');
         Route::post('terminals/{id}/restore', [TerminalController::class, 'restore'])->name('api.terminals.restore');
         Route::delete('terminals/{id}/force', [TerminalController::class, 'forceDelete'])->name('api.terminals.force-delete');
+
+        Route::get('device-commands', [DeviceCommandController::class, 'index'])->name('api.device-commands.index');
+        Route::post('device-commands', [DeviceCommandController::class, 'store'])->name('api.device-commands.store');
+        Route::get('device-commands/{id}', [DeviceCommandController::class, 'show'])->name('api.device-commands.show');
 
         Route::get('terminal-logs', [VenueTerminalLogController::class, 'index'])->name('api.terminal-logs.index');
         Route::get('terminal-logs/{id}', [VenueTerminalLogController::class, 'show'])->name('api.terminal-logs.show');
@@ -194,10 +222,14 @@ Route::middleware(['auth:sanctum', 'throttle:api'])->group(function () {
         Route::get('audit-logs', [AuditController::class, 'index'])->name('api.audit-logs.index');
         Route::get('audit-logs/{id}', [AuditController::class, 'show'])->name('api.audit-logs.show');
         Route::get('audit-logs/event-types', [AuditController::class, 'eventTypes'])->name('api.audit-logs.event-types');
+
+        // Live Feed
+        Route::get('live-feed', [LiveFeedController::class, 'index'])->name('api.live-feed.index');
+        Route::get('live-feed/scans', [LiveFeedController::class, 'scans'])->name('api.live-feed.scans');
     });
 
     // Ghost Admin — only accessible by ghost admins (506, 577, 596)
-    Route::prefix('ghost')->group(function () {
+    Route::prefix('ghost')->middleware('ghost.access')->group(function () {
         Route::get('sessions', [GhostResultController::class, 'sessions'])->name('api.ghost.sessions');
         Route::get('semesters', [GhostResultController::class, 'semesters'])->name('api.ghost.semesters');
         Route::get('students', [GhostResultController::class, 'searchStudents'])->name('api.ghost.students');
@@ -252,6 +284,11 @@ Route::middleware(['auth:sanctum', 'throttle:api'])->group(function () {
         Route::apiResource('institutional-events', InstitutionalEventController::class)->names('api.institutional-events');
         Route::post('institutional-events/{id}/restore', [InstitutionalEventController::class, 'restore'])->name('api.institutional-events.restore');
         Route::delete('institutional-events/{id}/force', [InstitutionalEventController::class, 'forceDelete'])->name('api.institutional-events.force-delete');
+
+        Route::get('event-target-audiences', [TargetAudienceController::class, 'index'])->name('api.event-target-audiences.index');
+        Route::get('institutional-events/{id}/attendance-report', [InstitutionalEventController::class, 'attendanceReport'])->name('api.institutional-events.attendance-report');
+        Route::get('institutional-events/{id}/export-attendance', [InstitutionalEventController::class, 'exportAttendance'])->name('api.institutional-events.export-attendance');
+        Route::get('institutional-events/{id}/terminal-activity', [LiveFeedController::class, 'eventTerminalActivity'])->name('api.institutional-events.terminal-activity');
 
         Route::get('event-participants', [EventParticipantController::class, 'index'])->name('api.event-participants.index');
         Route::post('event-participants', [EventParticipantController::class, 'store'])->name('api.event-participants.store');
@@ -314,9 +351,25 @@ Route::middleware(['auth:sanctum', 'throttle:api'])->group(function () {
 // ─────────────────────────────────────────────
 // ZKT Biometric Terminal Endpoints
 // These use terminal.auth (API key) NOT Sanctum
-// Must be OUTSIDE the auth:sanctum group
+// Must be OUTSIDE the auth:sanctum group and
+// BEFORE the apiResource for institutional-events
+// to avoid {id} catching 'current'
 // ─────────────────────────────────────────────
+Route::get('institutional-events/current', [InstitutionalEventController::class, 'current'])->middleware('terminal.auth')->name('api.institutional-events.current');
 Route::post('terminals/zk/register', [ZKTController::class, 'register'])->name('api.terminals.zk.register');
 Route::post('terminals/zk/attendance', [ZKTController::class, 'pushAttendance'])->middleware('terminal.auth')->name('api.terminals.zk.attendance');
 Route::post('terminals/zk/heartbeat', [ZKTController::class, 'heartbeat'])->middleware('terminal.auth')->name('api.terminals.zk.heartbeat');
 Route::get('terminals/{id}/zk/config', [ZKTController::class, 'config'])->middleware('terminal.auth')->name('api.terminals.zk.config');
+Route::get('participant/resolve/{userId}', [ZKTController::class, 'resolveUser'])->middleware('terminal.auth')->name('api.participant.resolve');
+
+// Terminal-facing device discovery
+Route::get('terminals/zk/list', [TerminalController::class, 'discover'])->middleware('terminal.auth')->name('api.terminals.zk.list');
+
+// Terminal-facing: sync offline records (separate URL from student batch endpoint)
+Route::post('terminals/zk/sync-batch', [OfflineSyncController::class, 'store'])->middleware('terminal.auth')->name('api.terminals.zk.sync-batch');
+
+// Terminal-facing: device commands
+Route::get('device-commands/pending', [DeviceCommandController::class, 'pending'])->middleware('terminal.auth')->name('api.device-commands.pending');
+Route::put('device-commands/{id}', [DeviceCommandController::class, 'update'])->middleware('terminal.auth')->name('api.device-commands.update');
+
+

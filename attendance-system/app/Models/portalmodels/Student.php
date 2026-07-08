@@ -189,7 +189,7 @@ class Student extends Authenticatable
 
     public function rrr_other_fees()
     {
-        return $this->hasMany(RrrTuitionFee::class);
+        return $this->hasMany(RrrOtherFee::class);
     }
 
 /*     public function vuna_accomodation_history()

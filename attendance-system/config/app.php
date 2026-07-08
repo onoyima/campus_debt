@@ -123,4 +123,9 @@ return [
         'store' => env('APP_MAINTENANCE_STORE', 'database'),
     ],
 
+    // Node.js Attendance Service
+    'node_service_url' => env('NODE_SERVICE_URL', 'http://127.0.0.1:4000'),
+    'node_service_api_key' => env('NODE_SERVICE_API_KEY', ''),
+    'terminal_service_api_key' => env('TERMINAL_SERVICE_API_KEY', env('NODE_SERVICE_API_KEY', '')),
+
 ];

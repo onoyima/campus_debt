@@ -21,6 +21,8 @@ class AttendanceEventAttendance extends Model
         'participant_id',
         'status_id',
         'attendance_method',
+        'clock_type',
+        'is_visitor',
         'verified_by_terminal_id',
         'timestamp',
         'venue_id',
@@ -34,12 +36,18 @@ class AttendanceEventAttendance extends Model
             'timestamp' => 'datetime',
             'metadata' => 'array',
             'created_at' => 'datetime',
+            'is_visitor' => 'boolean',
         ];
     }
 
     // references remote students.id or staff.id
 
     public function institutionalEvent()
+    {
+        return $this->belongsTo(AttendanceInstitutionalEvent::class, 'institutional_event_id');
+    }
+
+    public function event()
     {
         return $this->belongsTo(AttendanceInstitutionalEvent::class, 'institutional_event_id');
     }

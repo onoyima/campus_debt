@@ -28,6 +28,9 @@ class AttendanceInstitutionalEvent extends Model
         'end_date',
         'attendance_open_time',
         'attendance_close_time',
+        'clock_in_open_time',
+        'clock_out_open_time',
+        'clock_out_close_time',
         'grace_period_minutes',
         'is_mandatory',
         'is_active',
@@ -100,5 +103,20 @@ class AttendanceInstitutionalEvent extends Model
     public function records()
     {
         return $this->hasMany(AttendanceRecord::class, 'institutional_event_id');
+    }
+
+    public function assignedTerminals()
+    {
+        return $this->belongsToMany(AttendanceTerminal::class, 'attendance_event_terminals', 'institutional_event_id', 'terminal_id')
+            ->withTimestamps();
+    }
+
+    public function getActiveTerminalsAttribute()
+    {
+        $assigned = $this->assignedTerminals()->where('is_active', true)->get();
+        if ($assigned->isNotEmpty()) {
+            return $assigned;
+        }
+        return $this->venue?->terminals()->where('is_active', true)->get() ?? collect();
     }
 }

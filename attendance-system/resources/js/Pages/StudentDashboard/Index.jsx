@@ -32,6 +32,8 @@ function getLoggedInStudent() {
 export default function StudentDashboardIndex() {
   const [overview, setOverview] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [myEvents, setMyEvents] = useState([])
+  const [eventsLoading, setEventsLoading] = useState(false)
   const student = getLoggedInStudent()
   const [studentId, setStudentId] = useState(student?.id || '')
   const [user, setUser] = useState(student || {})
@@ -59,6 +61,7 @@ export default function StudentDashboardIndex() {
     if (!localStorage.getItem('token')) { window.location.href = '/login'; return }
     if (studentId) {
       fetchOverview()
+      fetchMyEvents()
       const interval = setInterval(fetchOverview, 30000)
       return () => clearInterval(interval)
     } else {
@@ -73,6 +76,15 @@ export default function StudentDashboardIndex() {
       setOverview(res.data.data || res.data)
     } catch {}
     finally { setLoading(false) }
+  }
+
+  const fetchMyEvents = async () => {
+    setEventsLoading(true)
+    try {
+      const res = await api.get('/student-dashboard/my-events', { params: { student_id: studentId } })
+      setMyEvents(res.data.data || [])
+    } catch {}
+    finally { setEventsLoading(false) }
   }
 
   const handleStudentIdSubmit = (e) => {
@@ -273,6 +285,99 @@ export default function StudentDashboardIndex() {
               </table>
             </div>
           )}
+        </div>
+      )}
+
+      {/* Recent Attendance Records */}
+      {studentId && !loading && overview?.recent_attendance && overview.recent_attendance.length > 0 && (
+        <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden shadow-sm mt-6">
+          <div className="px-6 py-5 border-b border-gray-100 flex items-center justify-between">
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900">Recent Attendance Records</h2>
+              <p className="text-sm text-gray-400 mt-0.5">Your fingerprint scan history</p>
+            </div>
+            <span className="text-xs text-gray-400 bg-gray-50 px-3 py-1.5 rounded-lg">
+              Last {overview.recent_attendance.length} scans
+            </span>
+          </div>
+          <div className="divide-y divide-gray-50">
+            {overview.recent_attendance.map((r, i) => (
+              <div key={r.id || i} className="flex items-center gap-4 px-6 py-3 hover:bg-gray-50/50 transition-colors">
+                <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-sm ${
+                  r.status?.counts_as_present ? 'bg-green-50 text-green-600' :
+                  r.status?.counts_as_absent ? 'bg-red-50 text-red-600' :
+                  'bg-gray-50 text-gray-500'
+                }`}>
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={r.status?.counts_as_present ? 'M5 13l4 4L19 7' : 'M6 18L18 6M6 6l12 12'} />
+                  </svg>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-gray-700 truncate">{r.session?.title || `Session #${r.session_id}`}</p>
+                  <p className="text-xs text-gray-400">
+                    {r.session?.venue?.name || 'No venue'} · {new Date(r.timestamp || r.created_at).toLocaleDateString()} {new Date(r.timestamp || r.created_at).toLocaleTimeString()}
+                  </p>
+                </div>
+                <span className={`text-xs font-semibold px-2 py-1 rounded-md ${
+                  r.status?.counts_as_present ? 'bg-green-50 text-green-700' :
+                  r.status?.counts_as_absent ? 'bg-red-50 text-red-700' :
+                  'bg-gray-50 text-gray-600'
+                }`}>
+                  {r.status?.label || r.status_code || 'unknown'}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* My Events */}
+      {studentId && !eventsLoading && myEvents.length > 0 && (
+        <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden shadow-sm mt-6">
+          <div className="px-6 py-5 border-b border-gray-100 flex items-center justify-between">
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900">My Events</h2>
+              <p className="text-sm text-gray-400 mt-0.5">Institutional events and your attendance status</p>
+            </div>
+            <span className="text-xs text-gray-400 bg-gray-50 px-3 py-1.5 rounded-lg">{myEvents.length} events</span>
+          </div>
+          <div className="divide-y divide-gray-50">
+            {myEvents.map((event, i) => {
+              const attColors = {
+                present: 'bg-green-50 text-green-700',
+                late: 'bg-amber-50 text-amber-700',
+                absent: 'bg-red-50 text-red-700',
+                pending: 'bg-blue-50 text-blue-700',
+              }
+              return (
+                <div key={event.id || i} className="flex items-center gap-4 px-6 py-3 hover:bg-gray-50/50 transition-colors">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-gray-900 truncate">{event.title}</p>
+                    <p className="text-xs text-gray-400 mt-0.5">
+                      {event.start_date ? new Date(event.start_date).toLocaleDateString() : '—'}
+                      {event.venue_name ? ` · ${event.venue_name}` : ''}
+                      {event.is_mandatory && <span className="ml-2 text-veritas-600 font-medium">Mandatory</span>}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-3 shrink-0">
+                    {event.check_in_time && (
+                      <span className="text-xs text-gray-500">
+                        In: {new Date(event.check_in_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </span>
+                    )}
+                    {event.check_out_time && (
+                      <span className="text-xs text-gray-500">
+                        Out: {new Date(event.check_out_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </span>
+                    )}
+                    <span className={`text-xs font-semibold px-2 py-1 rounded-md ${attColors[event.attendance_status] || 'bg-gray-50 text-gray-600'}`}>
+                      {event.attendance_status ? event.attendance_status.charAt(0).toUpperCase() + event.attendance_status.slice(1) : 'Unknown'}
+                    </span>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
         </div>
       )}
 

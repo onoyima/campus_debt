@@ -26,7 +26,7 @@ class ExportController extends Controller
 
     public function attendanceRecords(Request $request)
     {
-        $query = AttendanceRecord::query()->with(['session', 'statusType']);
+        $query = AttendanceRecord::query()->with(['session', 'status']);
 
         if ($request->filled('session_id')) {
             $query->where('session_id', $request->session_id);
@@ -47,7 +47,7 @@ class ExportController extends Controller
             'id' => $r->id,
             'student_id' => $r->student_id,
             'session_title' => $r->session?->title ?? $r->session_id,
-            'status' => $r->statusType?->display_name ?? $r->status_id,
+            'status' => $r->status?->display_name ?? $r->status_id,
             'method' => $r->attendance_method,
             'timestamp' => $r->timestamp,
             'venue_id' => $r->venue_id,
@@ -78,6 +78,8 @@ class ExportController extends Controller
         if ($request->filled('to')) {
             $query->whereDate('session_date', '<=', $request->to);
         }
+
+        $query->withCount('records');
 
         $records = $query->limit($request->integer('limit', 1000))->get();
 
@@ -184,10 +186,10 @@ class ExportController extends Controller
             $query->where('clock_type', $request->clock_type);
         }
         if ($request->filled('from')) {
-            $query->whereDate('clocked_at', '>=', $request->from);
+            $query->whereDate('timestamp', '>=', $request->from);
         }
         if ($request->filled('to')) {
-            $query->whereDate('clocked_at', '<=', $request->to);
+            $query->whereDate('timestamp', '<=', $request->to);
         }
 
         $records = $query->limit($request->integer('limit', 1000))->get();
@@ -196,7 +198,7 @@ class ExportController extends Controller
             'id' => $r->id,
             'staff_id' => $r->staff_id,
             'type' => $r->clock_type,
-            'clocked_at' => $r->clocked_at,
+            'clocked_at' => $r->timestamp,
             'method' => $r->attendance_method ?? 'manual',
         ]);
 

@@ -5,6 +5,11 @@ namespace App\Services;
 use App\Models\Attendance\AttendanceSession;
 use App\Models\Attendance\AttendanceTerminal;
 use App\Models\Attendance\AttendanceBiometricTemplate;
+use App\Models\Attendance\AttendanceInstitutionalEvent;
+use App\Models\Attendance\AttendanceEventAttendance;
+use App\Models\Attendance\AttendanceEventParticipant;
+use App\Models\Attendance\AttendanceOfflinePendingSync;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 class ZktService
@@ -358,6 +363,83 @@ class ZktService
     }
 
     /**
+     * Check if a participant is registered for an event
+     */
+    protected function isParticipantInEvent(AttendanceInstitutionalEvent $event, int $participantId, string $participantType): bool
+    {
+        return AttendanceEventParticipant::where('institutional_event_id', $event->id)
+            ->where('participant_id', $participantId)
+            ->where('participant_type', $participantType)
+            ->exists();
+    }
+
+    /**
+     * Check if this person already has an attendance record for this event
+     * with the same clock_type (prevents duplicate clock-in/out)
+     */
+    protected function hasExistingAttendanceForEvent(AttendanceInstitutionalEvent $event, int $participantId, string $participantType, string $clockType): bool
+    {
+        return AttendanceEventAttendance::where('institutional_event_id', $event->id)
+            ->where('participant_id', $participantId)
+            ->where('participant_type', $participantType)
+            ->where('clock_type', $clockType)
+            ->exists();
+    }
+
+    /**
+     * Record event attendance directly in the DB and create offline sync record
+     */
+    protected function recordEventAttendance(AttendanceTerminal $terminal, AttendanceInstitutionalEvent $event, array $record, string $participantType, string $clockType, bool $isVisitor): array
+    {
+        $userId = (int) ($record['user_id'] ?? 0);
+        $timestamp = $record['timestamp'] ?? now();
+        $method = $record['method'] ?? 'fingerprint';
+
+        // Prepare payload for direct DB write
+        $attendanceData = [
+            'institutional_event_id' => $event->id,
+            'participant_id' => $userId,
+            'participant_type' => $participantType,
+            'status_id' => 1, // Present
+            'clock_type' => $clockType,
+            'is_visitor' => $isVisitor,
+            'timestamp' => $timestamp,
+            'venue_id' => $terminal->venue_id,
+            'verified_by_terminal_id' => $terminal->id,
+            'attendance_method' => $method,
+            'sync_status' => 'synced',
+        ];
+
+        // 1. Write directly to attendance_event_attendance (real-time)
+        $attendance = AttendanceEventAttendance::create($attendanceData);
+
+        // 2. Also create offline sync record for resilience
+        $syncRecord = AttendanceOfflinePendingSync::create([
+            'terminal_id' => $terminal->id,
+            'table_name' => 'attendance_event_attendance',
+            'record_id' => $attendance->id,
+            'action' => 'create',
+            'payload' => json_encode($attendanceData),
+            'status' => 'processed',
+            'synced_at' => now(),
+        ]);
+
+        $this->logActivity($terminal, 'event_attendance', 'info',
+            ($isVisitor ? 'Visitor' : 'Participant') . " {$participantType}:{$userId} clocked {$clockType} for event #{$event->id}"
+        );
+
+        return [
+            'user_id' => (string) $userId,
+            'success' => true,
+            'attendance_id' => $attendance->id,
+            'sync_id' => $syncRecord->id,
+            'table' => 'attendance_event_attendance',
+            'clock_type' => $clockType,
+            'is_visitor' => $isVisitor,
+        ];
+    }
+
+    /**
      * Process a single attendance record (route to the appropriate handler)
      */
     protected function processSingleAttendance(AttendanceTerminal $terminal, array $record): array
@@ -409,40 +491,76 @@ class ZktService
                 'sync_status' => 'pending',
             ];
         } elseif ($terminal->clocking_mode === TerminalClockingService::MODE_EVENT || $clockingType === 'event') {
-            $targetTable = 'attendance_event_attendance';
-            $payload = [
-                'participant_id' => (int) $userId,
-                'participant_type' => 'student',
-                'timestamp' => $timestamp,
-                'venue_id' => $terminal->venue_id,
-                'verified_by_terminal_id' => $terminal->id,
-                'attendance_method' => $method,
-                'sync_status' => 'pending',
-            ];
+            $activeEvent = $this->findActiveEventForTerminal($terminal);
+            if (!$activeEvent) {
+                return ['success' => false, 'error' => 'No active event found for this terminal'];
+            }
+            $participantType = $this->resolveParticipantType($userId);
+            $clockType = $this->resolveClockType($activeEvent);
+            $participantId = (int) $userId;
+
+            // Dedup: skip if this person already has a scan for this clock_type
+            if ($this->hasExistingAttendanceForEvent($activeEvent, $participantId, $participantType, $clockType)) {
+                return [
+                    'user_id' => $userId,
+                    'success' => true,
+                    'message' => "Duplicate {$clockType} scan for event #{$activeEvent->id} — skipped",
+                    'deduplicated' => true,
+                ];
+            }
+
+            // Visitor check
+            $isVisitor = !$this->isParticipantInEvent($activeEvent, $participantId, $participantType);
+
+            // Directly record attendance
+            return $this->recordEventAttendance($terminal, $activeEvent, $record, $participantType, $clockType, $isVisitor);
         } else {
-            // any mode — try to auto-detect from active session
-            $session = $clockingService->findActiveSessionForTerminal($terminal);
-            if ($session) {
-                $targetTable = 'attendance_records';
-                $payload = [
-                    'student_id' => (int) $userId,
-                    'session_id' => $session->id,
-                    'venue_id' => $session->venue_id,
-                    'verified_by_terminal_id' => $terminal->id,
-                    'timestamp' => $timestamp,
-                    'attendance_method' => $method,
-                    'sync_status' => 'pending',
-                ];
+            // any mode — try active event first, then session, then fallback
+            $activeEvent = $this->findActiveEventForTerminal($terminal);
+            if ($activeEvent) {
+                $participantType = $this->resolveParticipantType($userId);
+                $clockType = $this->resolveClockType($activeEvent);
+                $participantId = (int) $userId;
+
+                // Dedup: skip if this person already has a scan for this clock_type
+                if ($this->hasExistingAttendanceForEvent($activeEvent, $participantId, $participantType, $clockType)) {
+                    return [
+                        'user_id' => $userId,
+                        'success' => true,
+                        'message' => "Duplicate {$clockType} scan for event #{$activeEvent->id} — skipped",
+                        'deduplicated' => true,
+                    ];
+                }
+
+                // Visitor check
+                $isVisitor = !$this->isParticipantInEvent($activeEvent, $participantId, $participantType);
+
+                // Directly record attendance
+                return $this->recordEventAttendance($terminal, $activeEvent, $record, $participantType, $clockType, $isVisitor);
             } else {
-                // fallback: generic attendance record
-                $payload = [
-                    'student_id' => (int) $userId,
-                    'timestamp' => $timestamp,
-                    'attendance_method' => $method,
-                    'venue_id' => $terminal->venue_id,
-                    'verified_by_terminal_id' => $terminal->id,
-                    'sync_status' => 'pending',
-                ];
+                $session = $clockingService->findActiveSessionForTerminal($terminal);
+                if ($session) {
+                    $targetTable = 'attendance_records';
+                    $payload = [
+                        'student_id' => (int) $userId,
+                        'session_id' => $session->id,
+                        'venue_id' => $session->venue_id,
+                        'verified_by_terminal_id' => $terminal->id,
+                        'timestamp' => $timestamp,
+                        'attendance_method' => $method,
+                        'sync_status' => 'pending',
+                    ];
+                } else {
+                    // fallback: generic attendance record
+                    $payload = [
+                        'student_id' => (int) $userId,
+                        'timestamp' => $timestamp,
+                        'attendance_method' => $method,
+                        'venue_id' => $terminal->venue_id,
+                        'verified_by_terminal_id' => $terminal->id,
+                        'sync_status' => 'pending',
+                    ];
+                }
             }
         }
 
@@ -461,6 +579,106 @@ class ZktService
             'sync_id' => $syncRecord->id,
             'table' => $targetTable,
         ];
+    }
+
+    /**
+     * Find the currently active institutional event at the terminal's venue
+     * or explicitly assigned to this terminal
+     */
+    protected function findActiveEventForTerminal(AttendanceTerminal $terminal): ?AttendanceInstitutionalEvent
+    {
+        $now = now();
+        $today = $now->format('Y-m-d');
+        $currentTime = $now->format('H:i:s');
+
+        return AttendanceInstitutionalEvent::where('is_active', true)
+            ->where('status', 'active')
+            ->where('start_date', '<=', $today)
+            ->where(function ($q) use ($today) {
+                $q->whereNull('end_date')
+                   ->orWhere('end_date', '>=', $today);
+            })
+            ->where(function ($q) use ($currentTime) {
+                $q->where(function ($q2) use ($currentTime) {
+                    $q2->where('attendance_open_time', '<=', $currentTime)
+                       ->where('attendance_close_time', '>=', $currentTime);
+                })->orWhere(function ($q2) use ($currentTime) {
+                    $q2->whereNotNull('clock_out_open_time')
+                       ->whereNotNull('clock_out_close_time')
+                       ->where('clock_out_open_time', '<=', $currentTime)
+                       ->where('clock_out_close_time', '>=', $currentTime);
+                });
+            })
+            ->where(function ($q) use ($terminal) {
+                // Match by venue OR by explicit terminal assignment
+                $q->where('venue_id', $terminal->venue_id)
+                  ->orWhereHas('assignedTerminals', function ($q2) use ($terminal) {
+                      $q2->where('attendance_terminals.id', $terminal->id);
+                  });
+            })
+            ->orderBy('created_at', 'desc')
+            ->first();
+    }
+
+    /**
+     * Resolve participant type (staff or student) from a user ID
+     */
+    protected function resolveParticipantType(string $userId): string
+    {
+        // Check biometric templates first (most reliable)
+        $template = \App\Models\Attendance\AttendanceBiometricTemplate::where('user_id', $userId)
+            ->where('is_active', true)
+            ->first();
+
+        if ($template && in_array($template->user_type, ['staff', 'student'])) {
+            return $template->user_type;
+        }
+
+        // Check staff_work_profiles by staff_no first (device registers the numeric part, e.g. "SAT 979" → "979")
+        try {
+            $profile = DB::connection('mysql_remote')
+                ->table('staff_work_profiles')
+                ->where('staff_no', 'REGEXP', "{$userId}$")
+                ->orderBy('staff_id')
+                ->first();
+            if ($profile) {
+                $staffExists = \App\Models\Portal\Staff::where('id', $profile->staff_id)->exists();
+                if ($staffExists) {
+                    return 'staff';
+                }
+            }
+        } catch (\Exception $e) {
+            Log::warning("staff_work_profiles lookup failed: {$e->getMessage()}");
+        }
+
+        // Check students table by direct ID (device registers student.id as-is)
+        try {
+            $studentExists = \App\Models\Portal\Student::where('id', (int) $userId)->exists();
+            if ($studentExists) {
+                return 'student';
+            }
+        } catch (\Exception $e) {
+            // Table or connection may not be available
+        }
+
+        return 'student';
+    }
+
+    /**
+     * Determine clock type (in/out) based on the event's time windows
+     */
+    protected function resolveClockType(\App\Models\Attendance\AttendanceInstitutionalEvent $event): string
+    {
+        $now = now();
+        $currentTime = $now->format('H:i:s');
+
+        if ($event->clock_out_open_time && $event->clock_out_close_time) {
+            if ($currentTime >= $event->clock_out_open_time && $currentTime <= $event->clock_out_close_time) {
+                return 'out';
+            }
+        }
+
+        return 'in';
     }
 
     /**

@@ -20,6 +20,76 @@ class ZKTController extends Controller
     }
 
     /**
+     * Resolve a numeric user_id to participant info (staff first, then student).
+     * Used by Node.js service to display names in the live feed.
+     */
+    public function resolveUser(Request $request, $userId): JsonResponse
+    {
+        // Try staff first (staff_work_profiles.staff_no REGEXP ending with userId)
+        try {
+            $profile = \Illuminate\Support\Facades\DB::connection('mysql_remote')
+                ->table('staff_work_profiles')
+                ->where('staff_work_profiles.staff_no', 'REGEXP', "{$userId}$")
+                ->select('staff_work_profiles.staff_id')
+                ->orderBy('staff_work_profiles.staff_id')
+                ->first();
+
+            if ($profile) {
+                $staff = \Illuminate\Support\Facades\DB::connection('mysql_remote')
+                    ->table('staff')
+                    ->where('id', $profile->staff_id)
+                    ->first(['id', 'fname', 'lname', 'email']);
+
+                if ($staff) {
+                    return response()->json([
+                        'success' => true,
+                        'data' => [
+                            'id' => (int) $userId,
+                            'name' => trim("{$staff->fname} {$staff->lname}"),
+                            'type' => 'staff',
+                            'email' => $staff->email ?? '',
+                        ],
+                    ]);
+                }
+            }
+        } catch (\Exception $e) {
+            // fall through to student lookup
+        }
+
+        // Fallback: try student
+        try {
+            $student = \Illuminate\Support\Facades\DB::connection('mysql_remote')
+                ->table('students')
+                ->where('id', (int) $userId)
+                ->first(['id', 'fname', 'lname', 'email']);
+
+            if ($student) {
+                return response()->json([
+                    'success' => true,
+                    'data' => [
+                        'id' => (int) $userId,
+                        'name' => trim("{$student->fname} {$student->lname}"),
+                        'type' => 'student',
+                        'email' => $student->email ?? '',
+                    ],
+                ]);
+            }
+        } catch (\Exception $e) {
+            // fall through
+        }
+
+        return response()->json([
+            'success' => false,
+            'data' => [
+                'id' => (int) $userId,
+                'name' => "User #{$userId}",
+                'type' => 'unknown',
+                'email' => '',
+            ],
+        ]);
+    }
+
+    /**
      * Get terminal configuration for sync (machines poll this endpoint)
      */
     public function config(Request $request, $id): JsonResponse

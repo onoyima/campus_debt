@@ -41,10 +41,6 @@ class ScholarshipStudent extends Model
     {
         return $this->belongsTo(VuSession::class);
     }
-    public function scholarship_histories()
-    {
-        return $this->hasMany(ScholarshipHistory::class);
-    }
 
 }
 

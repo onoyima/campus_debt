@@ -36,6 +36,11 @@ class AttendanceStaffClocking extends Model
         ];
     }
 
+    public function getClockedAtAttribute($value)
+    {
+        return $this->timestamp;
+    }
+
     // references remote staff.id
 
     public function venue()

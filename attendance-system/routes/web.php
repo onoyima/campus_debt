@@ -11,7 +11,9 @@ Route::get('/login', function () {
     return Inertia::render('Login');
 });
 
-Route::get('/dashboard', fn() => Inertia::render('Dashboard'));
+Route::get('/dashboard', function () {
+    return Inertia::render('Dashboard');
+});
 
 Route::get('/venues', fn() => Inertia::render('Venues/Index'));
 Route::get('/venues/create', fn() => Inertia::render('Venues/Form'));
@@ -29,6 +31,7 @@ Route::get('/sessions/{id}/edit', fn() => Inertia::render('Sessions/Form'));
 Route::get('/events', fn() => Inertia::render('Events/Index'));
 Route::get('/events/create', fn() => Inertia::render('Events/Form'));
 Route::get('/events/{id}/edit', fn() => Inertia::render('Events/Form'));
+Route::get('/events/{id}/attendance-report', fn() => Inertia::render('Events/AttendanceReport'));
 
 Route::get('/event-categories', fn() => Inertia::render('EventCategories/Index'));
 
@@ -93,3 +96,6 @@ Route::get('/portal-roles', fn() => Inertia::render('PortalRoles/Index'));
 Route::get('/profile', fn() => Inertia::render('Profile'));
 
 Route::get('/ghost/results', fn() => Inertia::render('GhostResults/Index'));
+
+Route::get('/device-monitor', fn() => Inertia::render('DeviceMonitor/Index'));
+Route::get('/live-feed', fn() => Inertia::render('LiveFeed/Index'));

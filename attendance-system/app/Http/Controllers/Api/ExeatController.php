@@ -12,7 +12,7 @@ class ExeatController extends Controller
     public function index(Request $request): JsonResponse
     {
         $perPage = $request->integer('per_page', 15);
-        $query = DB::table('exeat_requests');
+        $query = DB::connection('mysql_remote')->table('exeat_requests');
 
         if ($request->filled('student_id')) {
             $query->where('student_id', $request->student_id);
@@ -55,13 +55,13 @@ class ExeatController extends Controller
 
     public function show($id): JsonResponse
     {
-        $record = DB::table('exeat_requests')->where('id', $id)->first();
+        $record = DB::connection('mysql_remote')->table('exeat_requests')->where('id', $id)->first();
 
         if (!$record) {
             return response()->json(['message' => 'Exeat request not found.'], 404);
         }
 
-        $approvals = DB::table('exeat_approvals')
+        $approvals = DB::connection('mysql_remote')->table('exeat_approvals')
             ->where('exeat_request_id', $id)
             ->orderBy('created_at', 'desc')
             ->get();
@@ -103,7 +103,7 @@ class ExeatController extends Controller
         }
 
         try {
-            $id = \Illuminate\Support\Facades\DB::table('exeat_requests')->insertGetId([
+            $id = \Illuminate\Support\Facades\DB::connection('mysql_remote')->table('exeat_requests')->insertGetId([
                 'student_id' => $request->student_id,
                 'departure_date' => $request->departure_date,
                 'return_date' => $request->return_date,
@@ -115,7 +115,7 @@ class ExeatController extends Controller
                 'updated_at' => now(),
             ]);
 
-            $record = \Illuminate\Support\Facades\DB::table('exeat_requests')->where('id', $id)->first();
+            $record = \Illuminate\Support\Facades\DB::connection('mysql_remote')->table('exeat_requests')->where('id', $id)->first();
 
             return response()->json(['data' => $record, 'message' => 'Exeat request submitted successfully.'], 201);
         } catch (\Exception $e) {

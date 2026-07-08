@@ -7,6 +7,7 @@ use App\Models\Attendance\AttendanceSyncConflictLog;
 use App\Models\Attendance\AttendanceRecord;
 use App\Models\Attendance\AttendanceStaffClocking;
 use App\Models\Attendance\AttendanceEventAttendance;
+use App\Models\Attendance\AttendanceEventUnexpected;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -30,7 +31,12 @@ class SyncService
             'attendance_event_attendance' => [
                 'model' => AttendanceEventAttendance::class,
                 'id_field' => 'id',
-                'unique_keys' => ['institutional_event_id', 'participant_type', 'participant_id'],
+                'unique_keys' => ['institutional_event_id', 'participant_type', 'participant_id', 'clock_type'],
+            ],
+            'attendance_event_unexpected' => [
+                'model' => AttendanceEventUnexpected::class,
+                'id_field' => 'id',
+                'unique_keys' => ['institutional_event_id', 'participant_id', 'timestamp'],
             ],
         ];
     }

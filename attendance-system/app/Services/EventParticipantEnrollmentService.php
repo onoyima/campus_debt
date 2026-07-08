@@ -10,17 +10,13 @@ use Illuminate\Support\Facades\Log;
 
 class EventParticipantEnrollmentService
 {
-    /**
-     * Enroll participants for an event based on target groups
-     */
     public function enrollFromTargetGroups(AttendanceInstitutionalEvent $event): int
     {
         $targetGroups = $event->targetGroups;
         $enrolled = 0;
 
         foreach ($targetGroups as $group) {
-            $participantIds = $this->resolveTargetGroup($group);
-            foreach ($participantIds as $participantId) {
+            foreach ($this->resolveTargetGroup($group) as $participantId) {
                 try {
                     AttendanceEventParticipant::firstOrCreate([
                         'institutional_event_id' => $event->id,
@@ -38,94 +34,149 @@ class EventParticipantEnrollmentService
         return $enrolled;
     }
 
-    /**
-     * Resolve target group to participant IDs
-     * target_type can be: faculty, department, level, student, staff, course
-     */
-    protected function resolveTargetGroup(AttendanceEventTargetGroup $group): array
+    public function resolveTargetGroup(AttendanceEventTargetGroup $group): array
     {
         try {
-            switch ($group->target_type) {
-                case 'all_students':
-                    return DB::connection('mysql_remote')
-                        ->table('students')
-                        ->pluck('id')
-                        ->toArray();
-
-                case 'all_staff':
-                    return DB::connection('mysql_remote')
-                        ->table('staff')
-                        ->pluck('id')
-                        ->toArray();
-
-                case 'faculty':
-                    return DB::connection('mysql_remote')
-                        ->table('students')
-                        ->where('faculty_id', $group->target_id)
-                        ->pluck('id')
-                        ->toArray();
-
-                case 'department':
-                    return DB::connection('mysql_remote')
-                        ->table('students')
-                        ->where('department_id', $group->target_id)
-                        ->pluck('id')
-                        ->toArray();
-
-                case 'level':
-                    return DB::connection('mysql_remote')
-                        ->table('students')
-                        ->where('current_level', $group->target_id)
-                        ->pluck('id')
-                        ->toArray();
-
-                case 'course':
-                    // Enroll students registered for a specific course
-                    $sessionIds = \App\Models\Attendance\AttendanceSession::where('course_assigned_id', $group->target_id)
-                        ->pluck('id');
-                    return \App\Models\Attendance\AttendanceRecord::whereIn('session_id', $sessionIds)
-                        ->distinct()
-                        ->pluck('student_id')
-                        ->toArray();
-
-                case 'student':
-                    return [(int) $group->target_id];
-
-                case 'staff':
-                    return [(int) $group->target_id];
-
-                default:
-                    Log::warning("Unknown target_type: {$group->target_type}");
-                    return [];
+            if ($group->target_type === 'course') {
+                $sessionIds = \App\Models\Attendance\AttendanceSession::where('course_assigned_id', $group->target_id)
+                    ->pluck('id');
+                return \App\Models\Attendance\AttendanceRecord::whereIn('session_id', $sessionIds)
+                    ->distinct()->pluck('student_id')->toArray();
             }
+
+            return match ($group->target_type) {
+                'all_students' => DB::connection('mysql_remote')->table('students')->pluck('id')->toArray(),
+                'all_staff' => DB::connection('mysql_remote')->table('staff')->pluck('id')->toArray(),
+
+                'academic_staff' => DB::connection('mysql_remote')
+                    ->table('staff_work_profiles')
+                    ->where('staff_type_id', $group->target_id ?: 1)
+                    ->pluck('staff_id')->toArray(),
+
+                'non_academic_staff' => DB::connection('mysql_remote')
+                    ->table('staff_work_profiles')
+                    ->where('staff_type_id', $group->target_id ?: 2)
+                    ->pluck('staff_id')->toArray(),
+
+                'contract_staff', 'visiting_staff', 'casual_staff', 'other_staff' =>
+                    DB::connection('mysql_remote')
+                        ->table('staff_work_profiles')
+                        ->where('staff_type_id', $group->target_id)
+                        ->pluck('staff_id')->toArray(),
+
+                'senate_members', 'management', 'principal_officers' =>
+                    DB::connection('mysql_remote')
+                        ->table('staff_assigned_roles')
+                        ->when($group->target_id, fn($q) => $q->where('role_id', $group->target_id))
+                        ->pluck('staff_id')->toArray(),
+
+                'role' => DB::connection('mysql_remote')
+                    ->table('staff_assigned_roles')
+                    ->where('role_id', $group->target_id)
+                    ->pluck('staff_id')->toArray(),
+
+                'deans' => DB::connection('mysql_remote')
+                    ->table('staff')
+                    ->where('faculty_id', $group->target_id)
+                    ->pluck('id')->toArray(),
+
+                'directors', 'hods', 'faculty_officers', 'departmental_staff' =>
+                    DB::connection('mysql_remote')
+                        ->table('staff')
+                        ->where('department_id', $group->target_id)
+                        ->pluck('id')->toArray(),
+
+                'undergraduate' => DB::connection('mysql_remote')
+                    ->table('student_academics')
+                    ->where('student_type', 'undergraduate')
+                    ->pluck('student_id')->toArray(),
+
+                'postgraduate' => DB::connection('mysql_remote')
+                    ->table('student_academics')
+                    ->where('student_type', 'postgraduate')
+                    ->pluck('student_id')->toArray(),
+
+                'diploma' => DB::connection('mysql_remote')
+                    ->table('student_academics')
+                    ->where('student_type', 'diploma')
+                    ->pluck('student_id')->toArray(),
+
+                'foundation' => DB::connection('mysql_remote')
+                    ->table('student_academics')
+                    ->where('student_type', 'foundation/jupeb')
+                    ->pluck('student_id')->toArray(),
+
+                'final_year' => DB::connection('mysql_remote')
+                    ->table('student_academics')
+                    ->whereIn('level', function ($q) {
+                        $q->select(DB::raw('MAX(CAST(level AS UNSIGNED))'))->from('levels')->whereNotNull('level');
+                    })
+                    ->pluck('student_id')->toArray(),
+
+                'hostel_residents' => DB::connection('mysql_remote')
+                    ->table('student_academics')
+                    ->where('is_hostel', true)
+                    ->pluck('student_id')->toArray(),
+
+                'other_students' => DB::connection('mysql_remote')
+                    ->table('students')
+                    ->pluck('id')->toArray(),
+
+                'faculty' => DB::connection('mysql_remote')
+                    ->table('student_academics')
+                    ->where('faculty_id', $group->target_id)
+                    ->pluck('student_id')->toArray(),
+
+                'department' => DB::connection('mysql_remote')
+                    ->table('student_academics')
+                    ->where('department_id', $group->target_id)
+                    ->pluck('student_id')->toArray(),
+
+                'level' => DB::connection('mysql_remote')
+                    ->table('student_academics')
+                    ->where('level', $group->target_id)
+                    ->pluck('student_id')->toArray(),
+
+                'level_100', 'level_200', 'level_300', 'level_400', 'level_500' =>
+                    DB::connection('mysql_remote')
+                        ->table('student_academics')
+                        ->where('level', (int) substr($group->target_type, -3))
+                        ->pluck('student_id')->toArray(),
+
+                'programme' => DB::connection('mysql_remote')
+                    ->table('student_academics')
+                    ->where('course_study_id', $group->target_id)
+                    ->pluck('student_id')->toArray(),
+
+                'student' => [(int) $group->target_id],
+                'staff' => [(int) $group->target_id],
+
+                default => [],
+            };
         } catch (\Exception $e) {
-            Log::error("Failed to resolve target group {$group->id}: " . $e->getMessage());
+            Log::error("Failed to resolve target group {$group->id} type {$group->target_type}: " . $e->getMessage());
             return [];
         }
     }
 
-    /**
-     * Map target_type to participant_type
-     */
     protected function getParticipantType(string $targetType): string
     {
-        $map = [
-            'all_students' => 'student',
-            'faculty' => 'student',
-            'department' => 'student',
-            'level' => 'student',
-            'course' => 'student',
-            'student' => 'student',
-            'staff' => 'staff',
-            'all_staff' => 'staff',
-        ];
+        return match ($targetType) {
+            'all_students', 'undergraduate', 'postgraduate', 'diploma', 'foundation',
+            'final_year', 'hostel_residents', 'other_students', 'faculty', 'department',
+            'level', 'programme', 'course', 'student'
+                => 'student',
 
-        return $map[$targetType] ?? 'student';
+            'all_staff', 'academic_staff', 'non_academic_staff', 'senate_members',
+            'management', 'principal_officers', 'deans', 'directors', 'hods',
+            'faculty_officers', 'departmental_staff', 'contract_staff', 'visiting_staff',
+            'casual_staff', 'other_staff', 'staff', 'role'
+                => 'staff',
+
+            default => 'student',
+        };
     }
 
-    /**
-     * Check if a student is eligible for a chapel event based on their faculty/dept and assigned day
-     */
     public function checkChapelEligibility(int $studentId, AttendanceInstitutionalEvent $event): array
     {
         $targetGroups = $event->targetGroups;
@@ -138,7 +189,7 @@ class EventParticipantEnrollmentService
                 $currentDay = $dayMap[$today] ?? $today;
 
                 if ($group->schedule_day !== $currentDay) {
-                    continue; // Not this group's day
+                    continue;
                 }
             }
 

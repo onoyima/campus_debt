@@ -35,7 +35,7 @@ class Faculty extends Model
 
     public function staff_work_profiles()
     {
-        return $this->hasMany(Staff::class);
+        return $this->hasMany(StaffWorkProfile::class);
     }
 }
 

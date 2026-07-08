@@ -40,20 +40,21 @@ class ExamHallVerificationController extends Controller
         if (!$studentId) {
             try {
                 $query = \Illuminate\Support\Facades\DB::connection('mysql_remote')
-                    ->table('students');
+                    ->table('students')
+                    ->leftJoin('student_academics', 'students.id', '=', 'student_academics.student_id');
 
                 if ($request->filled('matric_no')) {
-                    $query->where('matric_no', $request->matric_no);
+                    $query->where('student_academics.matric_no', $request->matric_no);
                 } elseif ($request->filled('full_name')) {
                     $query->where(function ($q) use ($request) {
                         $name = $request->full_name;
-                        $q->where('first_name', 'like', "%{$name}%")
-                          ->orWhere('last_name', 'like', "%{$name}%")
-                          ->orWhereRaw("CONCAT(first_name, ' ', last_name) LIKE ?", ["%{$name}%"]);
+                        $q->where('students.fname', 'like', "%{$name}%")
+                          ->orWhere('students.lname', 'like', "%{$name}%")
+                          ->orWhereRaw("CONCAT(students.fname, ' ', students.lname) LIKE ?", ["%{$name}%"]);
                     });
                 }
 
-                $student = $query->select('id', 'matric_no', 'first_name', 'last_name')->first();
+                $student = $query->select('students.id', 'student_academics.matric_no', 'students.fname', 'students.lname')->first();
                 if (!$student) {
                     return response()->json(['verified' => false, 'error' => 'Student not found in portal'], 404);
                 }
@@ -124,8 +125,9 @@ class ExamHallVerificationController extends Controller
             try {
                 $student = \Illuminate\Support\Facades\DB::connection('mysql_remote')
                     ->table('students')
-                    ->where('id', $result['student_id'])
-                    ->select('id', 'matric_no', 'first_name', 'last_name', 'faculty_id', 'department_id', 'current_level')
+                    ->leftJoin('student_academics', 'students.id', '=', 'student_academics.student_id')
+                    ->where('students.id', $result['student_id'])
+                    ->select('students.id', 'student_academics.matric_no', 'students.fname', 'students.lname', 'student_academics.faculty_id', 'student_academics.department_id', 'student_academics.level as current_level')
                     ->first();
 
                 return response()->json(array_merge($result, [
@@ -193,8 +195,9 @@ class ExamHallVerificationController extends Controller
         try {
             $student = \Illuminate\Support\Facades\DB::connection('mysql_remote')
                 ->table('students')
-                ->where('id', $studentId)
-                ->select('id', 'matric_no', 'first_name', 'last_name')
+                ->leftJoin('student_academics', 'students.id', '=', 'student_academics.student_id')
+                ->where('students.id', $studentId)
+                ->select('students.id', 'student_academics.matric_no', 'students.fname', 'students.lname')
                 ->first();
 
             if ($student) {
@@ -202,7 +205,7 @@ class ExamHallVerificationController extends Controller
                     (int) $studentId,
                     $student->matric_no
                 );
-                $result['student_name'] = $student->first_name . ' ' . $student->last_name;
+                $result['student_name'] = $student->fname . ' ' . $student->lname;
                 $result['matric_no'] = $student->matric_no;
             }
         } catch (\Exception $e) {

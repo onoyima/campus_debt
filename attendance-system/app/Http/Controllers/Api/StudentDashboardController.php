@@ -11,6 +11,9 @@ use App\Models\Attendance\AttendanceSession;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use App\Models\Attendance\AttendanceEventParticipant;
+use App\Models\Attendance\AttendanceInstitutionalEvent;
+use App\Services\AttendanceEventService;
 
 class StudentDashboardController extends Controller
 {
@@ -248,5 +251,50 @@ class StudentDashboardController extends Controller
                 'total' => $records->total(),
             ],
         ]);
+    }
+
+    public function myEvents(Request $request): JsonResponse
+    {
+        $studentId = $request->integer('student_id');
+        if (!$studentId) {
+            return response()->json(['message' => 'Student ID required.'], 400);
+        }
+
+        $participantEventIds = AttendanceEventParticipant::where('participant_type', 'student')
+            ->where('participant_id', $studentId)
+            ->pluck('institutional_event_id');
+
+        $events = AttendanceInstitutionalEvent::with(['targetGroups', 'venue'])
+            ->whereIn('id', $participantEventIds)
+            ->orderBy('start_date', 'desc')
+            ->get();
+
+        $service = app(AttendanceEventService::class);
+        $results = $events->map(function ($event) use ($service, $studentId) {
+            $status = $service->getEventAttendanceStatus($event, 'student', $studentId);
+            $windows = $service->getWindows($event);
+            return [
+                'id' => $event->id,
+                'title' => $event->title,
+                'start_date' => $event->start_date,
+                'end_date' => $event->end_date,
+                'venue_name' => $event->venue?->name,
+                'is_mandatory' => $event->is_mandatory,
+                'status' => $event->status,
+                'attendance_status' => $status['status'],
+                'check_in_time' => $status['check_in']?->timestamp,
+                'check_out_time' => $status['check_out']?->timestamp,
+                'windows' => [
+                    'check_in_open' => $windows['check_in_open']->toDateTimeString(),
+                    'check_in_close' => $windows['check_in_close']->toDateTimeString(),
+                    'late_check_in_open' => $windows['late_check_in_open']->toDateTimeString(),
+                    'late_check_in_close' => $windows['late_check_in_close']->toDateTimeString(),
+                    'check_out_open' => $windows['check_out_open']->toDateTimeString(),
+                    'check_out_close' => $windows['check_out_close']->toDateTimeString(),
+                ],
+            ];
+        });
+
+        return response()->json(['data' => $results]);
     }
 }

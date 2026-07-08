@@ -32,6 +32,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'student.access' => \App\Http\Middleware\CheckStudentAccess::class,
             'staff.access' => \App\Http\Middleware\CheckStaffAccess::class,
             'terminal.auth' => \App\Http\Middleware\TerminalAuthMiddleware::class,
+            'ghost.access' => \App\Http\Middleware\CheckGhostAccess::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

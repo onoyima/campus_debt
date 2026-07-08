@@ -30,6 +30,11 @@ yarn-error.log
 .DS_Store
 Thumbs.db
 
+# Node.js Attendance Service
+attendance-service/node_modules/
+attendance-service/data/
+attendance-service/logs/
+
 # Build
 /public/build/
 /public/hot

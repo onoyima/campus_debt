@@ -10,19 +10,6 @@ use Illuminate\Support\Facades\Cache;
 
 class GhostResultController extends Controller
 {
-    private const GHOST_IDS = [506, 577, 596];
-
-    public function __construct()
-    {
-        $this->middleware(function ($request, $next) {
-            $user = $request->user();
-            if (!$user || !in_array($user->id, self::GHOST_IDS)) {
-                abort(403, 'Unauthorized access.');
-            }
-            return $next($request);
-        });
-    }
-
     public function sessions(): JsonResponse
     {
         $sessions = Cache::remember('ghost_vu_sessions', 3600, function () {
@@ -250,7 +237,7 @@ class GhostResultController extends Controller
 
             $matchedGrade = null;
 
-            $courseGradingCat = $courseGrading->firstWhere('course_id', $reg->course_id);
+            $courseGradingCat = $courseGrading->firstWhere(fn($c) => $c->course_id == $reg->course_id && $c->course_study_id == $courseStudyId);
             if ($courseGradingCat) {
                 $catGrades = $gradeSettings->filter(fn($g) =>
                     $g->course_study_id == $courseGradingCat->course_study_id
@@ -304,11 +291,13 @@ class GhostResultController extends Controller
                 'point' => $gradePoint,
                 'weight' => $weight,
                 'level' => $reg->level,
+                'status' => (int) $reg->status,
+                'is_vc_approval' => (int) $reg->is_vc_approval,
                 'vu_session_id' => $reg->vu_session_id,
                 'vu_semester_id' => $reg->vu_semester_id,
             ];
 
-            $isApproved = (int) $reg->is_vc_approval === 9 && (int) $reg->status === 3;
+            $isPublished = (int) $reg->is_vc_approval === 9;
             $groupKey = $reg->vu_session_id . '_' . $reg->vu_semester_id;
 
             if (!isset($grouped[$groupKey])) {
@@ -317,49 +306,49 @@ class GhostResultController extends Controller
                     'vu_semester_id' => $reg->vu_semester_id,
                     'session' => $sessions[$reg->vu_session_id] ?? "Session #{$reg->vu_session_id}",
                     'semester' => $semesters[$reg->vu_semester_id] ?? "Semester #{$reg->vu_semester_id}",
-                    'approved' => [],
-                    'unapproved' => [],
-                    'approved_total_weight' => 0,
-                    'approved_total_credit' => 0,
-                    'unapproved_total_weight' => 0,
-                    'unapproved_total_credit' => 0,
+                    'published' => [],
+                    'unpublished' => [],
+                    'published_total_weight' => 0,
+                    'published_total_credit' => 0,
+                    'unpublished_total_weight' => 0,
+                    'unpublished_total_credit' => 0,
                 ];
             }
 
-            if ($isApproved) {
-                $grouped[$groupKey]['approved'][] = $entry;
-                $grouped[$groupKey]['approved_total_weight'] += $weight;
-                $grouped[$groupKey]['approved_total_credit'] += $creditLoad;
+            if ($isPublished) {
+                $grouped[$groupKey]['published'][] = $entry;
+                $grouped[$groupKey]['published_total_weight'] += $weight;
+                $grouped[$groupKey]['published_total_credit'] += $creditLoad;
             } else {
-                $grouped[$groupKey]['unapproved'][] = $entry;
-                $grouped[$groupKey]['unapproved_total_weight'] += $weight;
-                $grouped[$groupKey]['unapproved_total_credit'] += $creditLoad;
+                $grouped[$groupKey]['unpublished'][] = $entry;
+                $grouped[$groupKey]['unpublished_total_weight'] += $weight;
+                $grouped[$groupKey]['unpublished_total_credit'] += $creditLoad;
             }
         }
 
-        $approvedGroups = [];
-        $unapprovedGroups = [];
+        $publishedGroups = [];
+        $unpublishedGroups = [];
 
         foreach ($grouped as $gk => $g) {
-            $approvedGpa = $g['approved_total_credit'] > 0
-                ? round($g['approved_total_weight'] / $g['approved_total_credit'], 2) : null;
-            $unapprovedGpa = $g['unapproved_total_credit'] > 0
-                ? round($g['unapproved_total_weight'] / $g['unapproved_total_credit'], 2) : null;
+            $publishedGpa = $g['published_total_credit'] > 0
+                ? round($g['published_total_weight'] / $g['published_total_credit'], 2) : null;
+            $unpublishedGpa = $g['unpublished_total_credit'] > 0
+                ? round($g['unpublished_total_weight'] / $g['unpublished_total_credit'], 2) : null;
 
-            if (!empty($g['approved'])) {
-                $approvedGroups[] = [
+            if (!empty($g['published'])) {
+                $publishedGroups[] = [
                     'session' => $g['session'],
                     'semester' => $g['semester'],
-                    'courses' => $g['approved'],
-                    'gpa' => $approvedGpa,
+                    'courses' => $g['published'],
+                    'gpa' => $publishedGpa,
                 ];
             }
-            if (!empty($g['unapproved'])) {
-                $unapprovedGroups[] = [
+            if (!empty($g['unpublished'])) {
+                $unpublishedGroups[] = [
                     'session' => $g['session'],
                     'semester' => $g['semester'],
-                    'courses' => $g['unapproved'],
-                    'gpa' => $unapprovedGpa,
+                    'courses' => $g['unpublished'],
+                    'gpa' => $unpublishedGpa,
                 ];
             }
         }
@@ -373,8 +362,8 @@ class GhostResultController extends Controller
                 'email' => $studentInfo->email,
                 'matric_no' => $academic?->matric_no,
             ] : null,
-            'approved' => $approvedGroups,
-            'unapproved' => $unapprovedGroups,
+            'approved' => $publishedGroups,
+            'unapproved' => $unpublishedGroups,
         ]);
     }
 }

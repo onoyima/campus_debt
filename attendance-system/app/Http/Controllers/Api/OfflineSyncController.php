@@ -62,13 +62,36 @@ class OfflineSyncController extends Controller
                 'device_timestamp' => $rec['device_timestamp'],
                 'status' => 'pending',
             ]);
-            $created[] = $sync;
+
+            // Process immediately so attendance appears in target tables in real-time
+            try {
+                $result = $this->syncService->processSyncRecord($sync->id);
+                $sync->refresh();
+                $created[] = [
+                    'id' => $sync->id,
+                    'table_name' => $sync->table_name,
+                    'status' => $sync->status,
+                    'success' => $result['success'] ?? false,
+                    'error' => $result['error'] ?? null,
+                ];
+            } catch (\Exception $e) {
+                $created[] = [
+                    'id' => $sync->id,
+                    'table_name' => $sync->table_name,
+                    'status' => $sync->status,
+                    'success' => false,
+                    'error' => $e->getMessage(),
+                ];
+            }
         }
+
+        $successCount = count(array_filter($created, fn($c) => $c['success']));
+        $failCount = count($created) - $successCount;
 
         return response()->json([
             'data' => $created,
-            'message' => count($created) . ' sync records queued.',
-        ], 201);
+            'message' => "{$successCount} records synced, {$failCount} failed.",
+        ], $failCount > 0 ? 207 : 201);
     }
 
     public function show(Request $request, $id): JsonResponse

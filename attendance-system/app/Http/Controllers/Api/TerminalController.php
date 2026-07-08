@@ -56,6 +56,23 @@ class TerminalController extends Controller
         ]);
     }
 
+    /**
+     * Terminal-facing: list all active terminals for device discovery
+     * Auth'd by terminal.auth middleware
+     */
+    public function discover(Request $request): JsonResponse
+    {
+        $terminals = AttendanceTerminal::where('is_active', true)
+            ->with('venue')
+            ->get(['id', 'device_id', 'ip_address', 'port', 'serial_number', 'device_model',
+                'terminal_type', 'clocking_mode', 'venue_id', 'connection_status', 'is_active']);
+
+        return response()->json([
+            'data' => $terminals,
+            'count' => $terminals->count(),
+        ]);
+    }
+
     public function store(Request $request): JsonResponse
     {
         $validator = Validator::make($request->all(), [

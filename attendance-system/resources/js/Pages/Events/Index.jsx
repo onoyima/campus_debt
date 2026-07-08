@@ -4,6 +4,7 @@ import AppLayout from '../../Components/AppLayout'
 import Table from '../../Components/Table'
 import VeritasSpinner from '../../Components/VeritasSpinner'
 import Pagination from '../../Components/Pagination'
+import TerminalActivityModal from '../../Components/TerminalActivityModal'
 import api from '../../api'
 
 export default function EventsIndex() {
@@ -14,6 +15,7 @@ export default function EventsIndex() {
   const [page, setPage] = useState(1)
   const [search, setSearch] = useState('')
   const [actionLoading, setActionLoading] = useState({})
+  const [activityEventId, setActivityEventId] = useState(null)
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -99,6 +101,26 @@ export default function EventsIndex() {
       ),
     },
     {
+      key: '_actions',
+      label: '',
+      render: (_, row) => row.deleted_at ? null : (
+        <div className="flex items-center gap-1">
+          <a
+            href={`/events/${row.id}/attendance-report`}
+            className="text-[10px] font-medium text-indigo-600 hover:text-indigo-800 bg-indigo-50 hover:bg-indigo-100 px-2.5 py-1 rounded-lg transition-colors"
+          >
+            Report
+          </a>
+          <button
+            onClick={() => setActivityEventId(row.id)}
+            className="text-[10px] font-medium text-veritas-600 hover:text-veritas-800 bg-veritas-50 hover:bg-veritas-100 px-2.5 py-1 rounded-lg transition-colors"
+          >
+            Terminals
+          </button>
+        </div>
+      ),
+    },
+    {
       key: '_trashed',
       label: '',
       render: (_, row) => row.deleted_at ? (
@@ -143,6 +165,10 @@ export default function EventsIndex() {
         <Table columns={columns} data={events} loading={loading} onEdit={showTrashed ? undefined : (row) => window.location.href = `/events/${row.id}/edit`} onDelete={showTrashed ? undefined : handleDelete} />
         {!loading && <Pagination meta={meta} onPageChange={setPage} />}
       </div>
+
+      {activityEventId && (
+        <TerminalActivityModal eventId={activityEventId} onClose={() => setActivityEventId(null)} />
+      )}
     </AppLayout>
   )
 }
