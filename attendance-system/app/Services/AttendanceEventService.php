@@ -30,9 +30,11 @@ class AttendanceEventService
         }
 
         // Fallback to event-level times (for backward compatibility)
+        // Convert to app timezone so we get the correct local date
+        $appTimezone = config('app.timezone', 'Africa/Lagos');
         $dateStr = $event->start_date instanceof Carbon
-            ? $event->start_date->format('Y-m-d')
-            : Carbon::parse($event->start_date)->format('Y-m-d');
+            ? $event->start_date->timezone($appTimezone)->format('Y-m-d')
+            : Carbon::parse($event->start_date)->timezone($appTimezone)->format('Y-m-d');
 
         $open = $event->attendance_open_time
             ? Carbon::parse($dateStr.' '.$event->attendance_open_time)
@@ -82,13 +84,16 @@ class AttendanceEventService
 
         $presentStatus = AttendanceStatusType::where('code', 'present')->value('id');
         $lateStatus = AttendanceStatusType::where('code', 'late')->value('id');
+        $absentStatusId = AttendanceStatusType::where('code', 'absent')->value('id');
 
         $checkInScan = null;
         $checkOutScan = null;
+        $hasAbsentRecord = false;
 
         if ($scans && $scans->isNotEmpty()) {
             foreach ($scans as $scan) {
-                if ((int) $scan->status_id === AttendanceStatusType::where('code', 'absent')->value('id')) {
+                if ((int) $scan->status_id === $absentStatusId) {
+                    $hasAbsentRecord = true;
                     continue;
                 }
                 $scanTime = Carbon::parse($scan->timestamp);
@@ -127,7 +132,16 @@ class AttendanceEventService
             ];
         }
 
-        // No real scans at all — always pending until the event is formally completed
+        // No real scans at all — absent if closeEvent already ran, otherwise pending
+        if ($hasAbsentRecord && $event->status === 'completed') {
+            return [
+                'status' => 'absent',
+                'status_id' => $absentStatusId,
+                'check_in' => null,
+                'check_out' => null,
+            ];
+        }
+
         return [
             'status' => 'pending',
             'status_id' => null,

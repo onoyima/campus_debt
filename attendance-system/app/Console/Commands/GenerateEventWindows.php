@@ -38,8 +38,9 @@ class GenerateEventWindows extends Command
                 continue;
             }
 
-            $start = Carbon::parse($event->start_date);
-            $end = $event->end_date ? Carbon::parse($event->end_date) : $start->copy();
+            $appTimezone = config('app.timezone', 'Africa/Lagos');
+            $start = Carbon::parse($event->start_date)->timezone($appTimezone)->startOfDay();
+            $end = $event->end_date ? Carbon::parse($event->end_date)->timezone($appTimezone)->startOfDay() : $start->copy();
 
             $count = 0;
             $current = $start->copy();

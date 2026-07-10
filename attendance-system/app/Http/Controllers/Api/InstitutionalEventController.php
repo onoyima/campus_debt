@@ -733,8 +733,11 @@ HTML;
      */
     private function generateEventWindows(AttendanceInstitutionalEvent $event): void
     {
-        $start = Carbon::parse($event->start_date);
-        $end = $event->end_date ? Carbon::parse($event->end_date) : $start->copy();
+        $appTimezone = config('app.timezone', 'Africa/Lagos');
+        $start = Carbon::parse($event->start_date)->timezone($appTimezone)->startOfDay();
+        $end = $event->end_date
+            ? Carbon::parse($event->end_date)->timezone($appTimezone)->startOfDay()
+            : $start->copy();
 
         $current = $start->copy();
         while ($current->lte($end)) {
