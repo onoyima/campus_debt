@@ -6,7 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Models\Attendance\AttendanceEventAttendance;
 use App\Models\Attendance\AttendanceInstitutionalEvent;
 use App\Models\Attendance\AttendanceTerminal;
-use App\Models\Attendance\AttendanceVenue;
+use App\Services\AttendanceEventService;
+use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
@@ -32,7 +33,7 @@ class LiveFeedController extends Controller
         try {
             $response = Http::timeout(5)
                 ->withHeaders($this->nodeApiKey() ? ['X-API-Key' => $this->nodeApiKey()] : [])
-                ->get($this->nodeBaseUrl() . '/device-api/devices/status');
+                ->get($this->nodeBaseUrl().'/device-api/devices/status');
             if ($response->successful()) {
                 $nodeDevices = $response->json('data', []);
             }
@@ -84,9 +85,15 @@ class LiveFeedController extends Controller
         $perPage = $request->integer('per_page', 50);
 
         $query = AttendanceEventAttendance::with([
-            'institutionalEvent' => function ($q) { $q->select('id', 'title'); },
-            'verifiedByTerminal' => function ($q) { $q->select('id', 'device_id', 'ip_address'); },
-            'status' => function ($q) { $q->select('id', 'code', 'display_name'); },
+            'institutionalEvent' => function ($q) {
+                $q->select('id', 'title');
+            },
+            'verifiedByTerminal' => function ($q) {
+                $q->select('id', 'device_id', 'ip_address');
+            },
+            'status' => function ($q) {
+                $q->select('id', 'code', 'display_name');
+            },
         ]);
 
         if ($request->filled('terminal_id')) {
@@ -122,6 +129,69 @@ class LiveFeedController extends Controller
         ]);
     }
 
+    public function eventLiveFeed(Request $request, $eventId): JsonResponse
+    {
+        $event = AttendanceInstitutionalEvent::findOrFail($eventId);
+        $since = $request->input('since');
+
+        $query = AttendanceEventAttendance::where('institutional_event_id', $eventId)
+            ->where('attendance_method', '!=', 'auto_absent');
+
+        if ($since) {
+            $query->where('created_at', '>', $since);
+        }
+
+        $scans = $query->orderBy('created_at', 'desc')
+            ->limit(50)
+            ->get();
+
+        $service = app(AttendanceEventService::class);
+        $result = $scans->map(function ($scan) use ($service, $event) {
+            $info = $service->resolveParticipantInfo($scan->participant_id, $scan->participant_type);
+            $classification = $service->classifyScan(Carbon::parse($scan->timestamp), $service->getWindows($event));
+            $status = match ($classification) {
+                'in' => 'present',
+                'late_in', 'outside' => 'late',
+                default => 'unknown',
+            };
+
+            return [
+                'id' => $scan->id,
+                'participant_id' => $scan->participant_id,
+                'participant_type' => $scan->participant_type,
+                'status' => $status,
+                'check_in_time' => $scan->timestamp,
+                'attendance_method' => $scan->attendance_method,
+                'clock_type' => $scan->clock_type,
+                'created_at' => $scan->created_at,
+                'name' => $info['name'] ?? "User #{$scan->participant_id}",
+                'department' => $info['department'] ?? '',
+                'faculty' => $info['faculty'] ?? '',
+            ];
+        });
+
+        $stats = [
+            'total_scanned' => AttendanceEventAttendance::where('institutional_event_id', $eventId)
+                ->where('attendance_method', '!=', 'auto_absent')
+                ->count(),
+            'present' => $result->where('status', 'present')->count(),
+            'late' => $result->where('status', 'late')->count(),
+        ];
+
+        return response()->json([
+            'data' => [
+                'event' => [
+                    'id' => $event->id,
+                    'title' => $event->title,
+                    'status' => $event->status,
+                    'start_date' => $event->start_date,
+                ],
+                'scans' => $result,
+                'stats' => $stats,
+            ],
+        ]);
+    }
+
     public function eventTerminalActivity(Request $request, $eventId): JsonResponse
     {
         $event = AttendanceInstitutionalEvent::with('venue')->findOrFail($eventId);
@@ -133,7 +203,7 @@ class LiveFeedController extends Controller
         try {
             $response = Http::timeout(5)
                 ->withHeaders($this->nodeApiKey() ? ['X-API-Key' => $this->nodeApiKey()] : [])
-                ->get($this->nodeBaseUrl() . '/device-api/devices/status');
+                ->get($this->nodeBaseUrl().'/device-api/devices/status');
             if ($response->successful()) {
                 $nodeDeviceMap = collect($response->json('data', []))->keyBy('id');
             }

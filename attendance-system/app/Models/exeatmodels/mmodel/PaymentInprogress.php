@@ -42,5 +42,4 @@ class PaymentInprogress extends Model
     {
         return $this->belongsTo(TuitionFee::class);
     }
-
 }

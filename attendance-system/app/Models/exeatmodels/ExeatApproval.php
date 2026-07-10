@@ -8,9 +8,11 @@ use Illuminate\Database\Eloquent\Model;
 class ExeatApproval extends Model
 {
     use HasFactory;
+
     protected $table = 'exeat_approvals';
+
     protected $fillable = [
-        'exeat_request_id', 'staff_id', 'role', 'status', 'comment', 'method'
+        'exeat_request_id', 'staff_id', 'role', 'status', 'comment', 'method',
     ];
 
     /**
@@ -21,6 +23,7 @@ class ExeatApproval extends Model
     {
         return $this->belongsTo(ExeatRequest::class);
     }
+
     public function staff()
     {
         return $this->belongsTo(Staff::class);

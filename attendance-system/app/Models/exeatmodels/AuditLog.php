@@ -1,4 +1,5 @@
 <?php
+
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -17,7 +18,7 @@ class AuditLog extends Model
         'target_type',
         'target_id',
         'details',
-        'timestamp'
+        'timestamp',
     ];
 
     /**

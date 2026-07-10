@@ -79,9 +79,24 @@ export default function PenaltiesIndex() {
 
   const columns = [
     { key: 'name', label: 'Name' },
-    { key: 'amount', label: 'Amount', render: (val) => Number(val).toLocaleString() },
+    { key: 'student_amount', label: 'Student Amount', render: (val, row) => Number(val || row.amount || 0).toLocaleString() },
+    { key: 'staff_amount', label: 'Staff Amount', render: (val, row) => Number(val || row.amount || 0).toLocaleString() },
     { key: 'penalty_type', label: 'Type' },
-    { key: 'applicable_to', label: 'Applicable To' },
+    { key: 'applicable_to', label: 'Applies To', render: (val) => (
+      <span className={`px-2 py-1 text-xs rounded-full ${
+        val === 'both' ? 'bg-blue-100 text-blue-800' : val === 'staff' ? 'bg-purple-100 text-purple-800' : 'bg-green-100 text-green-800'
+      }`}>{val === 'both' ? 'Student & Staff' : val === 'staff' ? 'Staff Only' : 'Student Only'}</span>
+    )},
+    {
+      key: '_triggers',
+      label: 'Triggers',
+      render: (_, row) => (
+        <div className="flex gap-1">
+          {row.applies_to_absence && <span className="px-1.5 py-0.5 text-[10px] rounded bg-red-100 text-red-700 font-medium">Absent</span>}
+          {row.applies_to_late && <span className="px-1.5 py-0.5 text-[10px] rounded bg-yellow-100 text-yellow-700 font-medium">Late</span>}
+        </div>
+      ),
+    },
     {
       key: 'is_active',
       label: 'Status',
@@ -91,8 +106,6 @@ export default function PenaltiesIndex() {
         </span>
       ),
     },
-    { key: 'effective_date', label: 'Effective Date' },
-    { key: 'expiry_date', label: 'Expiry Date' },
     {
       key: '_trashed',
       label: '',

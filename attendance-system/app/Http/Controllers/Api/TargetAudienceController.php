@@ -34,7 +34,9 @@ class TargetAudienceController extends Controller
             $seenStaffTypes = [];
             foreach ($staffTypes as $st) {
                 $tid = $st->id;
-                if (in_array($tid, $seenStaffTypes)) continue;
+                if (in_array($tid, $seenStaffTypes)) {
+                    continue;
+                }
                 $seenStaffTypes[] = $tid;
                 $staffCategoryOptions[] = ['target_type' => 'contract_staff', 'target_id' => $tid, 'label' => "Contract Staff (Type #{$tid})", 'description' => 'Contract staff'];
                 $staffCategoryOptions[] = ['target_type' => 'visiting_staff', 'target_id' => $tid, 'label' => "Visiting Staff (Type #{$tid})", 'description' => 'Visiting/adjunct staff'];
@@ -60,8 +62,8 @@ class TargetAudienceController extends Controller
             }
             $groups[] = ['category' => 'By Faculty / Department', 'type' => 'dynamic', 'options' => $deptFacultyOptions];
 
-            if (!empty($roles)) {
-                $roleOptions = collect($roles)->map(fn($r) => [
+            if (! empty($roles)) {
+                $roleOptions = collect($roles)->map(fn ($r) => [
                     'target_type' => 'role', 'target_id' => $r->id,
                     'label' => $r->name, 'description' => "Staff with role: {$r->name}",
                 ])->values()->toArray();
@@ -79,8 +81,8 @@ class TargetAudienceController extends Controller
                 ['target_type' => 'foundation', 'target_id' => null, 'label' => 'Foundation/JUPEB Students', 'description' => 'All foundation/JUPEB students'],
             ]];
 
-            if (!empty($levels)) {
-                $levelOptions = collect($levels)->map(fn($l) => [
+            if (! empty($levels)) {
+                $levelOptions = collect($levels)->map(fn ($l) => [
                     'target_type' => 'level', 'target_id' => $l->id,
                     'label' => "Level {$l->level}", 'description' => "Students in level {$l->level}",
                 ])->values()->toArray();
@@ -95,24 +97,24 @@ class TargetAudienceController extends Controller
                 ]];
             }
 
-            if (!empty($faculties)) {
-                $facultyOptions = collect($faculties)->map(fn($f) => [
+            if (! empty($faculties)) {
+                $facultyOptions = collect($faculties)->map(fn ($f) => [
                     'target_type' => 'faculty', 'target_id' => $f->id,
                     'label' => $f->name, 'description' => "Students in {$f->name}",
                 ])->values()->toArray();
                 $groups[] = ['category' => 'By Faculty', 'type' => 'dynamic', 'options' => $facultyOptions];
             }
 
-            if (!empty($departments)) {
-                $deptOptions = collect($departments)->map(fn($d) => [
+            if (! empty($departments)) {
+                $deptOptions = collect($departments)->map(fn ($d) => [
                     'target_type' => 'department', 'target_id' => $d->id,
                     'label' => $d->name, 'description' => "Students in {$d->name} department",
                 ])->values()->toArray();
                 $groups[] = ['category' => 'By Department', 'type' => 'dynamic', 'options' => $deptOptions];
             }
 
-            if (!empty($programmes)) {
-                $programmeOptions = collect($programmes)->map(fn($p) => [
+            if (! empty($programmes)) {
+                $programmeOptions = collect($programmes)->map(fn ($p) => [
                     'target_type' => 'programme', 'target_id' => $p->id,
                     'label' => $p->name, 'description' => "Students in {$p->name} programme",
                 ])->values()->toArray();
@@ -120,10 +122,10 @@ class TargetAudienceController extends Controller
             }
 
             $courses = $this->getRemoteTable('courses', 'id', 'code', null);
-            if (!empty($courses)) {
-                $courseOptions = collect($courses)->map(fn($c) => [
+            if (! empty($courses)) {
+                $courseOptions = collect($courses)->map(fn ($c) => [
                     'target_type' => 'course', 'target_id' => $c->id,
-                    'label' => $c->name, 'description' => "Students enrolled in this course",
+                    'label' => $c->name, 'description' => 'Students enrolled in this course',
                 ])->values()->toArray();
                 $groups[] = ['category' => 'By Course', 'type' => 'dynamic', 'options' => $courseOptions];
             }
@@ -147,6 +149,7 @@ class TargetAudienceController extends Controller
             if ($statusColumn) {
                 $query->where($statusColumn, 'active');
             }
+
             return $query->orderBy('name')->get()->toArray();
         } catch (\Exception $e) {
             return [];

@@ -8,8 +8,10 @@ use Illuminate\Database\Eloquent\Model;
 class Analytics extends Model
 {
     use HasFactory;
+
     protected $table = 'analytics';
+
     protected $fillable = [
-        'metric_type', 'value', 'computed_at'
+        'metric_type', 'value', 'computed_at',
     ];
 }

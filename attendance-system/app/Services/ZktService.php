@@ -2,40 +2,63 @@
 
 namespace App\Services;
 
-use App\Models\Attendance\AttendanceSession;
-use App\Models\Attendance\AttendanceTerminal;
 use App\Models\Attendance\AttendanceBiometricTemplate;
-use App\Models\Attendance\AttendanceInstitutionalEvent;
 use App\Models\Attendance\AttendanceEventAttendance;
 use App\Models\Attendance\AttendanceEventParticipant;
+use App\Models\Attendance\AttendanceInstitutionalEvent;
 use App\Models\Attendance\AttendanceOfflinePendingSync;
+use App\Models\Attendance\AttendanceStatusType;
+use App\Models\Attendance\AttendanceTerminal;
+use App\Models\Attendance\AttendanceVenueTerminalLog;
+use App\Models\Portal\Staff;
+use App\Models\Portal\Student;
+use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 class ZktService
 {
     const COMMAND_CONNECT = 1000;
+
     const COMMAND_DISCONNECT = 1001;
+
     const COMMAND_GET_USER = 1008;
+
     const COMMAND_SET_USER = 1009;
+
     const COMMAND_GET_ATTENDANCE = 1012;
+
     const COMMAND_GET_REAL_TIME = 1013;
+
     const COMMAND_CLEAR_DATA = 1014;
+
     const COMMAND_RESTART = 1015;
+
     const COMMAND_GET_FIRMWARE = 1020;
+
     const COMMAND_GET_DEVICE_INFO = 1021;
+
     const COMMAND_ENABLE_DEVICE = 1022;
+
     const COMMAND_DISABLE_DEVICE = 1023;
 
     protected array $sockets = [];
+
+    protected AttendanceEventService $eventService;
+
+    public function __construct()
+    {
+        $this->eventService = app(AttendanceEventService::class);
+    }
 
     /**
      * Connect to a ZKT terminal via TCP
      */
     public function connect(AttendanceTerminal $terminal): bool
     {
-        if (!$terminal->ip_address || !$terminal->port) {
+        if (! $terminal->ip_address || ! $terminal->port) {
             Log::warning("ZKT: No IP/port configured for terminal {$terminal->device_id}");
+
             return false;
         }
 
@@ -46,9 +69,10 @@ class ZktService
 
         try {
             $socket = @fsockopen($terminal->ip_address, $terminal->port, $errno, $errstr, 5);
-            if (!$socket) {
+            if (! $socket) {
                 Log::error("ZKT: Failed to connect to {$terminal->ip_address}:{$terminal->port} - {$errstr}");
                 $terminal->update(['connection_status' => 'offline']);
+
                 return false;
             }
 
@@ -60,14 +84,17 @@ class ZktService
                     'connection_status' => 'online',
                     'last_heartbeat_at' => now(),
                 ]);
+
                 return true;
             }
 
             $this->disconnect($terminal);
+
             return false;
         } catch (\Exception $e) {
-            Log::error("ZKT: Connection error for {$terminal->device_id}: " . $e->getMessage());
+            Log::error("ZKT: Connection error for {$terminal->device_id}: ".$e->getMessage());
             $terminal->update(['connection_status' => 'offline']);
+
             return false;
         }
     }
@@ -89,7 +116,8 @@ class ZktService
 
             return true;
         } catch (\Exception $e) {
-            Log::error("ZKT: Handshake failed for {$terminal->device_id}: " . $e->getMessage());
+            Log::error("ZKT: Handshake failed for {$terminal->device_id}: ".$e->getMessage());
+
             return false;
         }
     }
@@ -114,40 +142,47 @@ class ZktService
 
     /**
      * Pull attendance logs from a ZKT terminal
+     *
      * @return array<int, array{user_id: string, timestamp: string, method: string, status: int}>
      */
     public function pullAttendance(AttendanceTerminal $terminal): array
     {
         $records = [];
 
-        if (!$this->connect($terminal)) {
+        if (! $this->connect($terminal)) {
             return $records;
         }
 
         try {
             $key = "zkt_conn_{$terminal->id}";
             $socket = $this->sockets[$key] ?? null;
-            if (!$socket) return $records;
+            if (! $socket) {
+                return $records;
+            }
 
             $command = self::COMMAND_GET_ATTENDANCE;
             fwrite($socket, pack('V', $command));
 
             $buffer = '';
-            while (!feof($socket)) {
+            while (! feof($socket)) {
                 $chunk = fread($socket, 4096);
-                if ($chunk === false || strlen($chunk) === 0) break;
+                if ($chunk === false || strlen($chunk) === 0) {
+                    break;
+                }
                 $buffer .= $chunk;
-                if (strlen($chunk) < 4096) break;
+                if (strlen($chunk) < 4096) {
+                    break;
+                }
             }
 
             if (strlen($buffer) > 0) {
                 $records = $this->parseAttendanceBuffer($buffer, $terminal);
             }
 
-            Log::info("ZKT: Pulled " . count($records) . " attendance records from {$terminal->device_id}");
+            Log::info('ZKT: Pulled '.count($records)." attendance records from {$terminal->device_id}");
             $terminal->update(['transaction_count' => $terminal->transaction_count + count($records)]);
         } catch (\Exception $e) {
-            Log::error("ZKT: Pull attendance failed for {$terminal->device_id}: " . $e->getMessage());
+            Log::error("ZKT: Pull attendance failed for {$terminal->device_id}: ".$e->getMessage());
         }
 
         return $records;
@@ -198,10 +233,14 @@ class ZktService
      */
     protected function convertZkTimestamp(string $zkTimestamp): ?string
     {
-        if (strlen($zkTimestamp) < 7) return null;
+        if (strlen($zkTimestamp) < 7) {
+            return null;
+        }
 
         $bytes = unpack('C7', $zkTimestamp);
-        if (!$bytes) return null;
+        if (! $bytes) {
+            return null;
+        }
 
         try {
             $year = $bytes[1] + 2000;
@@ -224,11 +263,13 @@ class ZktService
     {
         $synced = 0;
 
-        if (!$this->connect($terminal)) return 0;
+        if (! $this->connect($terminal)) {
+            return 0;
+        }
 
         try {
             $query = AttendanceBiometricTemplate::where('is_active', true);
-            if (!empty($userIds)) {
+            if (! empty($userIds)) {
                 $query->whereIn('user_id', $userIds);
             }
             $templates = $query->get();
@@ -242,7 +283,7 @@ class ZktService
             $terminal->update(['user_count' => $synced]);
             Log::info("ZKT: Synced {$synced} users to {$terminal->device_id}");
         } catch (\Exception $e) {
-            Log::error("ZKT: Sync users failed for {$terminal->device_id}: " . $e->getMessage());
+            Log::error("ZKT: Sync users failed for {$terminal->device_id}: ".$e->getMessage());
         }
 
         return $synced;
@@ -255,7 +296,9 @@ class ZktService
     {
         $key = "zkt_conn_{$terminal->id}";
         $socket = $this->sockets[$key] ?? null;
-        if (!$socket) return false;
+        if (! $socket) {
+            return false;
+        }
 
         try {
             $userId = str_pad($template->user_id, 9, '0', STR_PAD_LEFT);
@@ -263,14 +306,16 @@ class ZktService
             $password = '';
             $privilege = 0;
 
-            $userData = $userId . str_pad($name, 24, ' ') . $password . pack('V', $privilege);
+            $userData = $userId.str_pad($name, 24, ' ').$password.pack('V', $privilege);
 
-            fwrite($socket, pack('V', self::COMMAND_SET_USER) . $userData);
+            fwrite($socket, pack('V', self::COMMAND_SET_USER).$userData);
 
             $response = fread($socket, 1024);
+
             return $response !== false;
         } catch (\Exception $e) {
-            Log::error("ZKT: Failed to send user {$template->user_id} to {$terminal->device_id}: " . $e->getMessage());
+            Log::error("ZKT: Failed to send user {$template->user_id} to {$terminal->device_id}: ".$e->getMessage());
+
             return false;
         }
     }
@@ -280,12 +325,16 @@ class ZktService
      */
     public function getDeviceInfo(AttendanceTerminal $terminal): ?array
     {
-        if (!$this->connect($terminal)) return null;
+        if (! $this->connect($terminal)) {
+            return null;
+        }
 
         try {
             $key = "zkt_conn_{$terminal->id}";
             $socket = $this->sockets[$key] ?? null;
-            if (!$socket) return null;
+            if (! $socket) {
+                return null;
+            }
 
             fwrite($socket, pack('V', self::COMMAND_GET_DEVICE_INFO));
             $response = fread($socket, 1024);
@@ -301,7 +350,7 @@ class ZktService
                 ];
             }
         } catch (\Exception $e) {
-            Log::error("ZKT: Get device info failed for {$terminal->device_id}: " . $e->getMessage());
+            Log::error("ZKT: Get device info failed for {$terminal->device_id}: ".$e->getMessage());
         }
 
         return null;
@@ -312,18 +361,24 @@ class ZktService
      */
     public function restart(AttendanceTerminal $terminal): bool
     {
-        if (!$this->connect($terminal)) return false;
+        if (! $this->connect($terminal)) {
+            return false;
+        }
 
         try {
             $key = "zkt_conn_{$terminal->id}";
             $socket = $this->sockets[$key] ?? null;
-            if (!$socket) return false;
+            if (! $socket) {
+                return false;
+            }
 
             fwrite($socket, pack('V', self::COMMAND_RESTART));
             $this->disconnect($terminal);
+
             return true;
         } catch (\Exception $e) {
-            Log::error("ZKT: Restart failed for {$terminal->device_id}: " . $e->getMessage());
+            Log::error("ZKT: Restart failed for {$terminal->device_id}: ".$e->getMessage());
+
             return false;
         }
     }
@@ -338,12 +393,12 @@ class ZktService
         $terminalId = $payload['terminal_id'] ?? null;
         $records = $payload['records'] ?? [];
 
-        if (!$terminalId || empty($records)) {
+        if (! $terminalId || empty($records)) {
             return ['success' => false, 'message' => 'Invalid payload'];
         }
 
         $terminal = AttendanceTerminal::find($terminalId);
-        if (!$terminal) {
+        if (! $terminal) {
             return ['success' => false, 'message' => 'Terminal not found'];
         }
 
@@ -354,12 +409,27 @@ class ZktService
                 $result = $this->processSingleAttendance($terminal, $record);
                 $results[] = $result;
             } catch (\Exception $e) {
-                Log::error("ZKT: Failed to process push record: " . $e->getMessage());
+                Log::error('ZKT: Failed to process push record: '.$e->getMessage());
                 $results[] = ['user_id' => $record['user_id'] ?? 'unknown', 'success' => false, 'error' => $e->getMessage()];
             }
         }
 
         return ['success' => true, 'processed' => count($results), 'records' => $results];
+    }
+
+    /**
+     * Find all participant_types a user is enrolled as in a specific event.
+     * Checks by participant_id only (ignores type) to handle cases where
+     * the same numeric ID exists in both staff and student tables.
+     */
+    protected function resolveEnrolledTypes(AttendanceInstitutionalEvent $event, int $participantId): array
+    {
+        return AttendanceEventParticipant::where('institutional_event_id', $event->id)
+            ->where('participant_id', $participantId)
+            ->pluck('participant_type')
+            ->unique()
+            ->values()
+            ->toArray();
     }
 
     /**
@@ -395,12 +465,29 @@ class ZktService
         $timestamp = $record['timestamp'] ?? now();
         $method = $record['method'] ?? 'fingerprint';
 
+        // Determine status based on scan time vs event windows
+        $windows = $this->eventService->getWindows($event);
+        $scanClassification = $this->eventService->classifyScan(Carbon::parse($timestamp), $windows);
+
+        $presentStatusId = AttendanceStatusType::where('code', 'present')->value('id');
+        $lateStatusId = AttendanceStatusType::where('code', 'late')->value('id');
+
+        if ($scanClassification === 'in') {
+            $statusId = $presentStatusId;
+        } elseif ($scanClassification === 'late_in' || $scanClassification === 'outside') {
+            $statusId = $lateStatusId;
+        } elseif ($scanClassification === 'out') {
+            $statusId = $presentStatusId;
+        } else {
+            $statusId = $presentStatusId;
+        }
+
         // Prepare payload for direct DB write
         $attendanceData = [
             'institutional_event_id' => $event->id,
             'participant_id' => $userId,
             'participant_type' => $participantType,
-            'status_id' => 1, // Present
+            'status_id' => $statusId,
             'clock_type' => $clockType,
             'is_visitor' => $isVisitor,
             'timestamp' => $timestamp,
@@ -425,7 +512,7 @@ class ZktService
         ]);
 
         $this->logActivity($terminal, 'event_attendance', 'info',
-            ($isVisitor ? 'Visitor' : 'Participant') . " {$participantType}:{$userId} clocked {$clockType} for event #{$event->id}"
+            ($isVisitor ? 'Visitor' : 'Participant')." {$participantType}:{$userId} clocked {$clockType} for event #{$event->id}"
         );
 
         return [
@@ -449,13 +536,13 @@ class ZktService
         $method = $record['method'] ?? 'fingerprint';
         $clockingType = $record['clocking_type'] ?? null;
 
-        if (!$userId) {
+        if (! $userId) {
             return ['success' => false, 'error' => 'Missing user_id'];
         }
 
         $clockingService = app(TerminalClockingService::class);
 
-        if (!$clockingService->canClockFor($terminal, $clockingType ?? 'any')) {
+        if (! $clockingService->canClockFor($terminal, $clockingType ?? 'any')) {
             return ['success' => false, 'error' => "Terminal not permitted for '{$clockingType}' clocking"];
         }
 
@@ -466,7 +553,7 @@ class ZktService
         $session = null;
         if ($terminal->clocking_mode === TerminalClockingService::MODE_CLASS || $clockingType === 'class') {
             $session = $clockingService->findActiveSessionForTerminal($terminal);
-            if (!$session) {
+            if (! $session) {
                 return ['success' => false, 'error' => 'No active session found for this terminal'];
             }
             $targetTable = 'attendance_records';
@@ -491,15 +578,37 @@ class ZktService
                 'sync_status' => 'pending',
             ];
         } elseif ($terminal->clocking_mode === TerminalClockingService::MODE_EVENT || $clockingType === 'event') {
-            $activeEvent = $this->findActiveEventForTerminal($terminal);
-            if (!$activeEvent) {
+            $activeEvent = $this->findActiveEventForTerminal($terminal, $timestamp, $userId);
+            if (! $activeEvent) {
                 return ['success' => false, 'error' => 'No active event found for this terminal'];
             }
-            $participantType = $this->resolveParticipantType($userId);
-            $clockType = $this->resolveClockType($activeEvent);
             $participantId = (int) $userId;
+            $clockType = $this->resolveClockType($activeEvent, $timestamp);
+            $enrolledTypes = $this->resolveEnrolledTypes($activeEvent, $participantId);
 
-            // Dedup: skip if this person already has a scan for this clock_type
+            if (! empty($enrolledTypes)) {
+                // Person is enrolled — record for each enrolled type (staff + student if both)
+                $results = [];
+                foreach ($enrolledTypes as $type) {
+                    if ($this->hasExistingAttendanceForEvent($activeEvent, $participantId, $type, $clockType)) {
+                        $results[] = [
+                            'user_id' => $userId,
+                            'success' => true,
+                            'message' => "Duplicate {$clockType} scan ({$type}) for event #{$activeEvent->id} — skipped",
+                            'deduplicated' => true,
+                        ];
+
+                        continue;
+                    }
+                    $results[] = $this->recordEventAttendance($terminal, $activeEvent, $record, $type, $clockType, false);
+                }
+
+                return ['success' => true, 'processed' => count($results), 'records' => $results];
+            }
+
+            // Not enrolled — resolve type and record as visitor
+            $participantType = $this->resolveParticipantType($userId);
+
             if ($this->hasExistingAttendanceForEvent($activeEvent, $participantId, $participantType, $clockType)) {
                 return [
                     'user_id' => $userId,
@@ -509,20 +618,38 @@ class ZktService
                 ];
             }
 
-            // Visitor check
-            $isVisitor = !$this->isParticipantInEvent($activeEvent, $participantId, $participantType);
-
-            // Directly record attendance
-            return $this->recordEventAttendance($terminal, $activeEvent, $record, $participantType, $clockType, $isVisitor);
+            return $this->recordEventAttendance($terminal, $activeEvent, $record, $participantType, $clockType, true);
         } else {
             // any mode — try active event first, then session, then fallback
-            $activeEvent = $this->findActiveEventForTerminal($terminal);
+            $activeEvent = $this->findActiveEventForTerminal($terminal, $timestamp, $userId);
             if ($activeEvent) {
-                $participantType = $this->resolveParticipantType($userId);
-                $clockType = $this->resolveClockType($activeEvent);
                 $participantId = (int) $userId;
+                $clockType = $this->resolveClockType($activeEvent, $timestamp);
+                $enrolledTypes = $this->resolveEnrolledTypes($activeEvent, $participantId);
 
-                // Dedup: skip if this person already has a scan for this clock_type
+                if (! empty($enrolledTypes)) {
+                    // Person is enrolled — record for each enrolled type (staff + student if both)
+                    $results = [];
+                    foreach ($enrolledTypes as $type) {
+                        if ($this->hasExistingAttendanceForEvent($activeEvent, $participantId, $type, $clockType)) {
+                            $results[] = [
+                                'user_id' => $userId,
+                                'success' => true,
+                                'message' => "Duplicate {$clockType} scan ({$type}) for event #{$activeEvent->id} — skipped",
+                                'deduplicated' => true,
+                            ];
+
+                            continue;
+                        }
+                        $results[] = $this->recordEventAttendance($terminal, $activeEvent, $record, $type, $clockType, false);
+                    }
+
+                    return ['success' => true, 'processed' => count($results), 'records' => $results];
+                }
+
+                // Not enrolled — resolve type and record as visitor
+                $participantType = $this->resolveParticipantType($userId);
+
                 if ($this->hasExistingAttendanceForEvent($activeEvent, $participantId, $participantType, $clockType)) {
                     return [
                         'user_id' => $userId,
@@ -532,11 +659,7 @@ class ZktService
                     ];
                 }
 
-                // Visitor check
-                $isVisitor = !$this->isParticipantInEvent($activeEvent, $participantId, $participantType);
-
-                // Directly record attendance
-                return $this->recordEventAttendance($terminal, $activeEvent, $record, $participantType, $clockType, $isVisitor);
+                return $this->recordEventAttendance($terminal, $activeEvent, $record, $participantType, $clockType, true);
             } else {
                 $session = $clockingService->findActiveSessionForTerminal($terminal);
                 if ($session) {
@@ -564,7 +687,7 @@ class ZktService
             }
         }
 
-        $syncRecord = \App\Models\Attendance\AttendanceOfflinePendingSync::create([
+        $syncRecord = AttendanceOfflinePendingSync::create([
             'terminal_id' => $terminal->id,
             'table_name' => $targetTable,
             'record_id' => null,
@@ -585,48 +708,60 @@ class ZktService
      * Find the currently active institutional event at the terminal's venue
      * or explicitly assigned to this terminal
      */
-    protected function findActiveEventForTerminal(AttendanceTerminal $terminal): ?AttendanceInstitutionalEvent
+    protected function findActiveEventForTerminal(AttendanceTerminal $terminal, ?string $scanTimestamp = null, ?string $userId = null): ?AttendanceInstitutionalEvent
     {
-        $now = now();
+        $now = $scanTimestamp ? Carbon::parse($scanTimestamp) : now();
         $today = $now->format('Y-m-d');
         $currentTime = $now->format('H:i:s');
 
-        return AttendanceInstitutionalEvent::where('is_active', true)
+        $baseQuery = AttendanceInstitutionalEvent::where('is_active', true)
             ->where('status', 'active')
             ->where('start_date', '<=', $today)
             ->where(function ($q) use ($today) {
                 $q->whereNull('end_date')
-                   ->orWhere('end_date', '>=', $today);
-            })
-            ->where(function ($q) use ($currentTime) {
-                $q->where(function ($q2) use ($currentTime) {
-                    $q2->where('attendance_open_time', '<=', $currentTime)
-                       ->where('attendance_close_time', '>=', $currentTime);
-                })->orWhere(function ($q2) use ($currentTime) {
-                    $q2->whereNotNull('clock_out_open_time')
-                       ->whereNotNull('clock_out_close_time')
-                       ->where('clock_out_open_time', '<=', $currentTime)
-                       ->where('clock_out_close_time', '>=', $currentTime);
-                });
+                    ->orWhere('end_date', '>=', $today);
             })
             ->where(function ($q) use ($terminal) {
-                // Match by venue OR by explicit terminal assignment
                 $q->where('venue_id', $terminal->venue_id)
-                  ->orWhereHas('assignedTerminals', function ($q2) use ($terminal) {
-                      $q2->where('attendance_terminals.id', $terminal->id);
-                  });
+                    ->orWhereHas('assignedTerminals', function ($q2) use ($terminal) {
+                        $q2->where('attendance_terminals.id', $terminal->id);
+                    });
             })
-            ->orderBy('created_at', 'desc')
+            ->whereHas('windows', function ($q2) use ($today, $currentTime) {
+                $q2->where('window_date', $today)
+                    ->where('is_active', true)
+                    ->where('attendance_open_time', '<=', $currentTime)
+                    ->where('attendance_close_time', '>=', $currentTime);
+            });
+
+        if ($userId) {
+            $event = (clone $baseQuery)
+                ->whereHas('participants', function ($q) use ($userId) {
+                    $q->where('participant_id', (int) $userId);
+                })
+                ->orderBy('attendance_open_time', 'desc')
+                ->first();
+            if ($event) {
+                return $event;
+            }
+        }
+
+        return (clone $baseQuery)
+            ->orderByRaw('ABS(TIME_TO_SEC(attendance_open_time) - TIME_TO_SEC(?))', [$currentTime])
             ->first();
     }
 
     /**
      * Resolve participant type (staff or student) from a user ID
+     *
+     * Checks both staff_work_profiles and students tables independently,
+     * then decides based on which match. Prefers staff when both match
+     * (staff work profiles are more specific than a student auto-increment ID).
      */
     protected function resolveParticipantType(string $userId): string
     {
         // Check biometric templates first (most reliable)
-        $template = \App\Models\Attendance\AttendanceBiometricTemplate::where('user_id', $userId)
+        $template = AttendanceBiometricTemplate::where('user_id', $userId)
             ->where('is_active', true)
             ->first();
 
@@ -634,17 +769,24 @@ class ZktService
             return $template->user_type;
         }
 
-        // Check staff_work_profiles by staff_no first (device registers the numeric part, e.g. "SAT 979" → "979")
+        $isStaff = false;
+        $isStudent = false;
+
+        // Check staff_work_profiles by staff_no (device registers the numeric part, e.g. "SAT 979" → "979")
+        // Try exact match first, then REGEXP suffix match
         try {
             $profile = DB::connection('mysql_remote')
                 ->table('staff_work_profiles')
-                ->where('staff_no', 'REGEXP', "{$userId}$")
+                ->where(function ($q) use ($userId) {
+                    $q->where('staff_no', $userId)
+                        ->orWhere('staff_no', 'REGEXP', "{$userId}$");
+                })
                 ->orderBy('staff_id')
                 ->first();
             if ($profile) {
-                $staffExists = \App\Models\Portal\Staff::where('id', $profile->staff_id)->exists();
+                $staffExists = Staff::where('id', $profile->staff_id)->exists();
                 if ($staffExists) {
-                    return 'staff';
+                    $isStaff = true;
                 }
             }
         } catch (\Exception $e) {
@@ -653,12 +795,30 @@ class ZktService
 
         // Check students table by direct ID (device registers student.id as-is)
         try {
-            $studentExists = \App\Models\Portal\Student::where('id', (int) $userId)->exists();
-            if ($studentExists) {
-                return 'student';
+            $isStudent = Student::where('id', (int) $userId)->exists();
+        } catch (\Exception $e) {
+            Log::warning("students lookup failed: {$e->getMessage()}");
+        }
+
+        // Decide based on what matched
+        if ($isStaff && ! $isStudent) {
+            return 'staff';
+        }
+        if ($isStudent && ! $isStaff) {
+            return 'student';
+        }
+        if ($isStaff && $isStudent) {
+            return 'staff';
+        } // Prefer staff when both match
+
+        // Neither matched — try direct staff table lookup by ID as last resort
+        try {
+            $staffDirect = Staff::where('id', (int) $userId)->exists();
+            if ($staffDirect) {
+                return 'staff';
             }
         } catch (\Exception $e) {
-            // Table or connection may not be available
+            // ignore
         }
 
         return 'student';
@@ -667,10 +827,10 @@ class ZktService
     /**
      * Determine clock type (in/out) based on the event's time windows
      */
-    protected function resolveClockType(\App\Models\Attendance\AttendanceInstitutionalEvent $event): string
+    protected function resolveClockType(AttendanceInstitutionalEvent $event, ?string $scanTimestamp = null): string
     {
-        $now = now();
-        $currentTime = $now->format('H:i:s');
+        $scanTime = $scanTimestamp ? Carbon::parse($scanTimestamp) : now();
+        $currentTime = $scanTime->format('H:i:s');
 
         if ($event->clock_out_open_time && $event->clock_out_close_time) {
             if ($currentTime >= $event->clock_out_open_time && $currentTime <= $event->clock_out_close_time) {
@@ -686,7 +846,7 @@ class ZktService
      */
     public function logActivity(AttendanceTerminal $terminal, string $event, string $level = 'info', ?string $message = null): void
     {
-        \App\Models\Attendance\AttendanceVenueTerminalLog::create([
+        AttendanceVenueTerminalLog::create([
             'terminal_id' => $terminal->id,
             'event' => $event,
             'payload' => ['level' => $level, 'message' => $message],

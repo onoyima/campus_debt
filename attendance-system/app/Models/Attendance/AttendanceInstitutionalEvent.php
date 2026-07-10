@@ -111,12 +111,18 @@ class AttendanceInstitutionalEvent extends Model
             ->withTimestamps();
     }
 
+    public function windows()
+    {
+        return $this->hasMany(AttendanceEventWindow::class, 'institutional_event_id')->orderBy('window_date');
+    }
+
     public function getActiveTerminalsAttribute()
     {
         $assigned = $this->assignedTerminals()->where('is_active', true)->get();
         if ($assigned->isNotEmpty()) {
             return $assigned;
         }
+
         return $this->venue?->terminals()->where('is_active', true)->get() ?? collect();
     }
 }

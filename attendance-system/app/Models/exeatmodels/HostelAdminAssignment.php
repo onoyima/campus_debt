@@ -8,7 +8,9 @@ use Illuminate\Database\Eloquent\Model;
 class HostelAdminAssignment extends Model
 {
     use HasFactory;
+
     protected $table = 'hostel_admin_assignments';
+
     protected $fillable = [
         'vuna_accomodation_id',
         'staff_id',
@@ -30,12 +32,12 @@ class HostelAdminAssignment extends Model
     {
         return $this->belongsTo(VunaAccomodation::class, 'vuna_accomodation_id');
     }
-    
+
     public function staff()
     {
         return $this->belongsTo(Staff::class, 'staff_id');
     }
-    
+
     public function assignedBy()
     {
         return $this->belongsTo(Staff::class, 'assigned_by');

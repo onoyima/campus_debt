@@ -6,7 +6,6 @@ use App\Http\Controllers\Controller;
 use App\Models\Attendance\AttendanceRecord;
 use App\Models\Attendance\AttendanceSession;
 use App\Models\Attendance\AttendanceStatusType;
-use App\Models\Attendance\AttendanceVenue;
 use App\Services\GhostAdminService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -224,7 +223,7 @@ class StaffCourseController extends Controller
 
         $callback = function () use ($records, $studentMap) {
             $handle = fopen('php://output', 'w');
-            fputs($handle, "\xEF\xBB\xBF"); // BOM for UTF-8
+            fwrite($handle, "\xEF\xBB\xBF"); // BOM for UTF-8
 
             fputcsv($handle, [
                 'Student ID', 'Student Name', 'Email',
@@ -268,7 +267,7 @@ class StaffCourseController extends Controller
             ->where('status', 2)
             ->exists();
 
-        if (!$assigned) {
+        if (! $assigned) {
             abort(403, 'You are not assigned to this course.');
         }
     }

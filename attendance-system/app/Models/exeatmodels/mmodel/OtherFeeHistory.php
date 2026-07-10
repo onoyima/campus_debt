@@ -16,7 +16,7 @@ class OtherFeeHistory extends Model
         'description',
         'amount',
         'qty',
-        'initiated_date'
+        'initiated_date',
     ];
 
     public function rrr_other_fee()

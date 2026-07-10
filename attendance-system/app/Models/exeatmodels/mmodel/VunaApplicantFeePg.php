@@ -57,5 +57,4 @@ class VunaApplicantFeePg extends Model
     {
         return $this->belongsTo(VuSession::class);
     }
-
 }

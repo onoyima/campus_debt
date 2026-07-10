@@ -11,6 +11,7 @@ use App\Models\Attendance\AttendanceSession;
 use App\Models\Attendance\AttendanceStaffClocking;
 use App\Models\Attendance\AttendanceTerminal;
 use App\Models\Attendance\AttendanceVenue;
+use App\Models\Portal\Student;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
@@ -32,7 +33,7 @@ class DashboardController extends Controller
             $totalStudentsEligible = AttendanceExamEligibility::whereHas('eligibilityStatus', function ($q) {
                 $q->where('is_eligible', true);
             })->distinct('student_id')->count('student_id');
-            $totalStudents = \App\Models\Portal\Student::count();
+            $totalStudents = Student::count();
 
             return [
                 'venues' => $totalVenues,

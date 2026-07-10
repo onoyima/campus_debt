@@ -7,9 +7,9 @@ use App\Notifications\AttendanceNotificationMail;
 use App\Services\SmsService;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
-use Illuminate\Support\Facades\DB;
 
 class SendAttendanceNotificationJob implements ShouldQueue
 {
@@ -25,7 +25,9 @@ class SendAttendanceNotificationJob implements ShouldQueue
     public function handle(SmsService $smsService): void
     {
         $notification = AttendanceNotification::find($this->notificationId);
-        if (!$notification || $notification->status === 'sent' || $notification->status === 'delivered') return;
+        if (! $notification || $notification->status === 'sent' || $notification->status === 'delivered') {
+            return;
+        }
 
         try {
             $notification->update(['sent_at' => now(), 'status' => 'sent']);
@@ -56,7 +58,9 @@ class SendAttendanceNotificationJob implements ShouldQueue
     private function sendEmail(AttendanceNotification $notification): void
     {
         $email = $this->getRecipientEmail($notification);
-        if (!$email) return;
+        if (! $email) {
+            return;
+        }
 
         Mail::to($email)->send(new AttendanceNotificationMail(
             $notification->title,
@@ -69,9 +73,11 @@ class SendAttendanceNotificationJob implements ShouldQueue
     private function sendSms(AttendanceNotification $notification, SmsService $smsService): void
     {
         $phone = $this->getRecipientPhone($notification);
-        if (!$phone) return;
+        if (! $phone) {
+            return;
+        }
 
-        $smsMessage = strip_tags($notification->title) . ': ' . strip_tags($notification->message);
+        $smsMessage = strip_tags($notification->title).': '.strip_tags($notification->message);
         $smsService->send($phone, $smsMessage);
     }
 
@@ -83,6 +89,7 @@ class SendAttendanceNotificationJob implements ShouldQueue
                 ->where('id', $notification->recipient_id)
                 ->value('email');
         }
+
         return DB::connection('mysql_remote')
             ->table('staff')
             ->where('id', $notification->recipient_id)
@@ -97,6 +104,7 @@ class SendAttendanceNotificationJob implements ShouldQueue
                 ->where('id', $notification->recipient_id)
                 ->value('phone');
         }
+
         return DB::connection('mysql_remote')
             ->table('staff')
             ->where('id', $notification->recipient_id)

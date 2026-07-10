@@ -14,6 +14,7 @@ use App\Http\Controllers\Api\EligibilityEngineController;
 use App\Http\Controllers\Api\EventAttendanceController;
 use App\Http\Controllers\Api\EventCategoryController;
 use App\Http\Controllers\Api\EventParticipantController;
+use App\Http\Controllers\Api\EventPenaltyAssignmentController;
 use App\Http\Controllers\Api\ExamEligibilityController;
 use App\Http\Controllers\Api\ExamHallVerificationController;
 use App\Http\Controllers\Api\ExeatController;
@@ -21,6 +22,7 @@ use App\Http\Controllers\Api\ExeatDebtCheckController;
 use App\Http\Controllers\Api\ExportController;
 use App\Http\Controllers\Api\ExcuseController;
 use App\Http\Controllers\Api\InstitutionalEventController;
+use App\Http\Controllers\Api\MyEventsController;
 use App\Http\Controllers\Api\NotificationController;
 use App\Http\Controllers\Api\OfflineSyncController;
 use App\Http\Controllers\Api\PaymentController;
@@ -74,6 +76,7 @@ Route::middleware(['auth:sanctum', 'throttle:api'])->group(function () {
     Route::get('notifications/{id}', [NotificationController::class, 'show'])->name('api.notifications.show');
     Route::post('notifications/{id}/mark-read', [NotificationController::class, 'markAsRead'])->name('api.notifications.mark-read');
     Route::get('status-types', [StatusTypeController::class, 'index'])->name('api.status-types.index');
+    Route::get('my-events', [MyEventsController::class, 'index'])->name('api.my-events.index');
 
     // ─────────────────────────────────────────────
     // STUDENT-ONLY — guarded by student.access
@@ -284,11 +287,18 @@ Route::middleware(['auth:sanctum', 'throttle:api'])->group(function () {
         Route::apiResource('institutional-events', InstitutionalEventController::class)->names('api.institutional-events');
         Route::post('institutional-events/{id}/restore', [InstitutionalEventController::class, 'restore'])->name('api.institutional-events.restore');
         Route::delete('institutional-events/{id}/force', [InstitutionalEventController::class, 'forceDelete'])->name('api.institutional-events.force-delete');
+        Route::patch('institutional-events/{id}/toggle-status', [InstitutionalEventController::class, 'toggleStatus'])->name('api.institutional-events.toggle-status');
 
         Route::get('event-target-audiences', [TargetAudienceController::class, 'index'])->name('api.event-target-audiences.index');
         Route::get('institutional-events/{id}/attendance-report', [InstitutionalEventController::class, 'attendanceReport'])->name('api.institutional-events.attendance-report');
         Route::get('institutional-events/{id}/export-attendance', [InstitutionalEventController::class, 'exportAttendance'])->name('api.institutional-events.export-attendance');
         Route::get('institutional-events/{id}/terminal-activity', [LiveFeedController::class, 'eventTerminalActivity'])->name('api.institutional-events.terminal-activity');
+        Route::get('institutional-events/{id}/live-feed', [LiveFeedController::class, 'eventLiveFeed'])->name('api.institutional-events.live-feed');
+
+        Route::get('institutional-events/{eventId}/penalty-assignments', [EventPenaltyAssignmentController::class, 'index'])->name('api.institutional-events.penalty-assignments.index');
+        Route::post('institutional-events/{eventId}/penalty-assignments', [EventPenaltyAssignmentController::class, 'store'])->name('api.institutional-events.penalty-assignments.store');
+        Route::post('institutional-events/{eventId}/penalty-assignments/bulk', [EventPenaltyAssignmentController::class, 'bulkAssign'])->name('api.institutional-events.penalty-assignments.bulk');
+        Route::delete('institutional-events/{eventId}/penalty-assignments/{id}', [EventPenaltyAssignmentController::class, 'destroy'])->name('api.institutional-events.penalty-assignments.destroy');
 
         Route::get('event-participants', [EventParticipantController::class, 'index'])->name('api.event-participants.index');
         Route::post('event-participants', [EventParticipantController::class, 'store'])->name('api.event-participants.store');

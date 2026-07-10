@@ -21,7 +21,7 @@ class TerminalClockingService
             self::MODE_ANY => true,
             self::MODE_CLASS => $clockingType === 'class',
             self::MODE_STAFF => $clockingType === 'staff',
-            self::MODE_EVENT => $clockingType === 'event',
+            self::MODE_EVENT => in_array($clockingType, ['event', 'any']),
             default => false,
         };
     }

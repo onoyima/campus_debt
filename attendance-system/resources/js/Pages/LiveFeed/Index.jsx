@@ -349,12 +349,19 @@ export default function LiveFeed() {
                                e._type === 'error' ? (e.device_id || 'device') :
                                e.device_id || 'system'}
                             </span>
+                            {e._type === 'scan' && e.user_type && (
+                              <span className={`text-[9px] font-semibold px-1.5 py-0.5 rounded ${
+                                e.user_type === 'staff' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'
+                              }`}>
+                                {e.user_type}
+                              </span>
+                            )}
                           </div>
                           <span className="text-gray-400">{e._received}</span>
                         </div>
                         <div className="text-gray-400 mt-0.5 pl-3">
                           {e._type === 'scan' && (
-                            <span>{e.user_name ? `${e.user_name} (${e.user_type || '?'})` : `#${e.user_id}`} &middot; {e.method || 'fingerprint'} on {e.device_name || e.device_ip || e.device_id}</span>
+                            <span>{e.method || 'fingerprint'} on {e.device_name || e.device_ip || e.device_id}</span>
                           )}
                           {e._type === 'heartbeat' && (
                             <span>Heartbeat — {e.status === 'online' ? 'connected' : 'disconnected'}</span>

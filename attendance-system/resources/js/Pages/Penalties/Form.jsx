@@ -10,7 +10,9 @@ export default function PenaltiesForm() {
   const id = isEdit ? window.location.pathname.split('/')[2] : null
 
   const [form, setForm] = useState({
-    name: '', description: '', penalty_type: 'fixed', amount: '', applicable_to: 'student',
+    name: '', description: '', penalty_type: 'fixed', amount: '',
+    student_amount: '', staff_amount: '',
+    applicable_to: 'student',
     applies_to_late: false, applies_to_absence: false, effective_date: '', expiry_date: '', is_active: true,
   })
   const [error, setError] = useState(null)
@@ -28,6 +30,8 @@ export default function PenaltiesForm() {
             description: d.description ?? '',
             penalty_type: d.penalty_type ?? 'fixed',
             amount: d.amount ?? '',
+            student_amount: d.student_amount ?? '',
+            staff_amount: d.staff_amount ?? '',
             applicable_to: d.applicable_to ?? 'student',
             applies_to_late: d.applies_to_late ?? false,
             applies_to_absence: d.applies_to_absence ?? false,
@@ -93,12 +97,15 @@ export default function PenaltiesForm() {
               <option value="variable">Variable</option>
             </select>
           </div>
-          <FormInput label="Amount" name="amount" type="number" value={form.amount} onChange={handleChange} required />
+          <FormInput label="Base Amount (Fallback)" name="amount" type="number" value={form.amount} onChange={handleChange} />
+          <FormInput label="Student Amount" name="student_amount" type="number" value={form.student_amount} onChange={handleChange} placeholder="Falls back to base amount if empty" />
+          <FormInput label="Staff Amount" name="staff_amount" type="number" value={form.staff_amount} onChange={handleChange} placeholder="Falls back to base amount if empty" />
           <div className="mb-4">
             <label className="block text-sm font-medium text-gray-700 mb-1">Applicable To</label>
             <select name="applicable_to" value={form.applicable_to} onChange={handleChange} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500">
-              <option value="student">Student</option>
-              <option value="staff">Staff</option>
+              <option value="student">Student Only</option>
+              <option value="staff">Staff Only</option>
+              <option value="both">Student & Staff</option>
             </select>
           </div>
           <div className="mb-4">

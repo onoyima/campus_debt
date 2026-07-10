@@ -4,15 +4,15 @@ namespace App\Services;
 
 use App\Models\Attendance\AttendanceDebt;
 use App\Models\Attendance\AttendanceEventAttendance;
+use App\Models\Attendance\AttendanceEventWindow;
 use App\Models\Attendance\AttendanceInstitutionalEvent;
-use App\Models\Attendance\AttendanceNotification;
 use App\Models\Attendance\AttendanceSession;
 use App\Models\Attendance\AttendanceStaffCompliance;
 use App\Models\Attendance\AttendanceStatusType;
 use App\Models\Attendance\AttendanceStudentDebtLedger;
-use App\Services\AutoAbsentMarkService;
-use App\Services\EventParticipantEnrollmentService;
+use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class EventLifecycleService
 {
@@ -21,30 +21,64 @@ class EventLifecycleService
         $now = now();
 
         $activatedEvents = AttendanceInstitutionalEvent::where('status', 'draft')
-            ->where('start_date', '<=', $now->toDateString())
             ->where('is_active', true)
+            ->where(function ($q) use ($now) {
+                $q->where('start_date', '<', $now->toDateString())
+                    ->orWhere(function ($q2) use ($now) {
+                        $q2->whereDate('start_date', '=', $now->toDateString())
+                            ->where('attendance_open_time', '<=', $now->format('H:i:s'));
+                    });
+            })
             ->get();
         $activatedEvents->each(function ($event) {
             $event->update(['status' => 'active']);
-            // Auto-enroll participants from target groups
             if ($event->targetGroups()->exists()) {
                 $enrollmentService = app(EventParticipantEnrollmentService::class);
                 $enrollmentService->enrollFromTargetGroups($event);
             }
         });
 
-        AttendanceInstitutionalEvent::where('status', 'active')
+        // Activate scheduled windows when their open time arrives
+        AttendanceEventWindow::where('status', 'scheduled')
+            ->where('is_active', true)
+            ->where('window_date', '<=', $now->toDateString())
+            ->where('attendance_open_time', '<=', $now->format('H:i:s'))
+            ->update(['status' => 'active']);
+
+        // Close windows whose close time has passed
+        AttendanceEventWindow::where('status', 'active')
             ->where(function ($q) use ($now) {
-                $q->where('end_date', '<', $now->toDateString())
+                $q->where('window_date', '<', $now->toDateString())
                     ->orWhere(function ($q2) use ($now) {
-                        $q2->whereDate('end_date', '=', $now->toDateString())
+                        $q2->where('window_date', '=', $now->toDateString())
                             ->where('attendance_close_time', '<', $now->format('H:i:s'));
                     });
             })
-            ->get()
-            ->each(function ($event) {
-                $this->closeEvent($event);
-            });
+            ->update(['status' => 'closed']);
+
+        // Auto-close events whose last window has closed
+        $activeEvents = AttendanceInstitutionalEvent::where('status', 'active')->get();
+        foreach ($activeEvents as $event) {
+            $hasOpenWindows = AttendanceEventWindow::where('institutional_event_id', $event->id)
+                ->where('status', '!=', 'closed')
+                ->exists();
+
+            if (! $hasOpenWindows) {
+                // Also check event-level close time for backward compat (events without windows)
+                $eventClosed = false;
+                if ($event->end_date) {
+                    $eventClosed = $now->toDateString() > $event->end_date->format('Y-m-d')
+                        || ($now->toDateString() === $event->end_date->format('Y-m-d') && $now->format('H:i:s') > $event->attendance_close_time);
+                } else {
+                    $eventClosed = $now->toDateString() > $event->start_date->format('Y-m-d')
+                        || ($now->toDateString() === $event->start_date->format('Y-m-d') && $now->format('H:i:s') > $event->attendance_close_time);
+                }
+
+                if ($eventClosed) {
+                    $this->closeEvent($event);
+                }
+            }
+        }
 
         $activatingSessions = AttendanceSession::where('status', 'scheduled')
             ->where('opens_at', '<=', $now)
@@ -73,14 +107,87 @@ class EventLifecycleService
             ->where('status', 'active')
             ->update(['status' => 'closed']);
 
+        // Mark all enrolled participants without a scan as absent
+        $this->markAbsentParticipants($event);
+
         if ($event->is_mandatory) {
             $this->generatePenaltiesForEvent($event);
         }
     }
 
+    public function markAbsentParticipants(AttendanceInstitutionalEvent $event): int
+    {
+        $absentStatusId = AttendanceStatusType::where('code', 'absent')->value('id');
+
+        if (! $absentStatusId) {
+            return 0;
+        }
+
+        $closeTime = $event->attendance_close_time
+            ? Carbon::parse($event->start_date->format('Y-m-d').' '.$event->attendance_close_time)
+            : Carbon::parse($event->end_date->format('Y-m-d').' 23:59:00');
+
+        $marked = 0;
+
+        $participants = DB::table('attendance_event_participants')
+            ->where('institutional_event_id', $event->id)
+            ->get(['participant_id', 'participant_type']);
+
+        foreach ($participants as $participant) {
+            // Check for REAL scan records — exclude auto_absent placeholders
+            $hasRealScan = AttendanceEventAttendance::where('institutional_event_id', $event->id)
+                ->where('participant_id', $participant->participant_id)
+                ->where('participant_type', $participant->participant_type)
+                ->where('attendance_method', '!=', 'auto_absent')
+                ->exists();
+
+            if ($hasRealScan) {
+                continue;
+            }
+
+            // Also skip if already marked absent
+            $alreadyMarked = AttendanceEventAttendance::where('institutional_event_id', $event->id)
+                ->where('participant_id', $participant->participant_id)
+                ->where('participant_type', $participant->participant_type)
+                ->where('status_id', $absentStatusId)
+                ->exists();
+
+            if ($alreadyMarked) {
+                continue;
+            }
+
+            try {
+                AttendanceEventAttendance::create([
+                    'institutional_event_id' => $event->id,
+                    'participant_id' => $participant->participant_id,
+                    'participant_type' => $participant->participant_type,
+                    'status_id' => $absentStatusId,
+                    'attendance_method' => 'auto_absent',
+                    'timestamp' => $closeTime,
+                    'venue_id' => $event->venue_id,
+                    'sync_status' => 'synced',
+                    'metadata' => [
+                        'auto_marked' => true,
+                        'marked_at' => now()->toDateTimeString(),
+                        'source' => 'event_close_auto_absent',
+                    ],
+                ]);
+                $marked++;
+            } catch (\Exception $e) {
+                Log::error("Failed to mark absent for participant {$participant->participant_id} in event {$event->id}: ".$e->getMessage());
+            }
+        }
+
+        if ($marked > 0) {
+            Log::info("Marked {$marked} participants absent for event {$event->id}");
+        }
+
+        return $marked;
+    }
+
     public function generatePenaltiesForEvent(AttendanceInstitutionalEvent $event): void
     {
-        $penaltyAssignments = $event->penaltyAssignments;
+        $penaltyAssignments = $event->penaltyAssignments()->with('penalty')->get();
 
         if ($penaltyAssignments->isEmpty()) {
             return;
@@ -91,27 +198,34 @@ class EventLifecycleService
 
         $participants = DB::table('attendance_event_participants')
             ->where('institutional_event_id', $event->id)
-            ->where('participant_type', 'student')
-            ->pluck('participant_id');
+            ->get(['participant_id', 'participant_type']);
 
-        $attended = AttendanceEventAttendance::where('institutional_event_id', $event->id)
-            ->where('participant_type', 'student')
+        $attendance = AttendanceEventAttendance::where('institutional_event_id', $event->id)
             ->get()
-            ->keyBy('participant_id');
+            ->keyBy(fn ($r) => $r->participant_id.'_'.$r->participant_type);
 
-        foreach ($participants as $studentId) {
-            $record = $attended->get($studentId);
+        foreach ($participants as $participant) {
+            $key = $participant->participant_id.'_'.$participant->participant_type;
+            $record = $attendance->get($key);
 
-            if (!$record) {
-                $this->applyPenalty($event, $studentId, $penaltyAssignments, 'absence');
-            } elseif ($record->status_id === $lateStatusId) {
-                $this->applyPenalty($event, $studentId, $penaltyAssignments, 'late');
+            $isAbsent = ! $record || (int) $record->status_id === $absentStatusId;
+            $isLate = $record && (int) $record->status_id === $lateStatusId;
+
+            if ($isAbsent) {
+                $this->applyPenalty($event, $participant->participant_id, $participant->participant_type, $penaltyAssignments, 'absence');
+            } elseif ($isLate) {
+                $this->applyPenalty($event, $participant->participant_id, $participant->participant_type, $penaltyAssignments, 'late');
             }
         }
     }
 
-    private function applyPenalty(AttendanceInstitutionalEvent $event, int $studentId, $penaltyAssignments, string $type): void
-    {
+    private function applyPenalty(
+        AttendanceInstitutionalEvent $event,
+        int $participantId,
+        string $participantType,
+        $penaltyAssignments,
+        string $type,
+    ): void {
         foreach ($penaltyAssignments as $assignment) {
             if ($assignment->applies_to !== $type) {
                 continue;
@@ -119,31 +233,59 @@ class EventLifecycleService
 
             $penalty = $assignment->penalty;
 
-            if (!$penalty || !$penalty->is_active) {
+            if (! $penalty || ! $penalty->is_active) {
                 continue;
             }
 
-            $existingDebt = AttendanceDebt::where('student_id', $studentId)
-                ->where('institutional_event_id', $event->id)
+            // Check if penalty applies to this participant type
+            if ($penalty->applicable_to !== 'both' && $penalty->applicable_to !== $participantType) {
+                continue;
+            }
+
+            // Deduplication: skip if debt already exists for this event+penalty+participant
+            $existingQuery = AttendanceDebt::where('institutional_event_id', $event->id)
                 ->where('penalty_id', $penalty->id)
-                ->exists();
+                ->where('participant_type', $participantType);
 
-            if ($existingDebt) {
+            if ($participantType === 'staff') {
+                $existingQuery->where('staff_id', $participantId);
+            } else {
+                $existingQuery->where('student_id', $participantId);
+            }
+
+            if ($existingQuery->exists()) {
                 continue;
             }
 
-            AttendanceDebt::create([
-                'student_id' => $studentId,
+            $amount = $penalty->getAmountForType($participantType);
+
+            $debtData = [
                 'institutional_event_id' => $event->id,
                 'penalty_id' => $penalty->id,
-                'amount' => $penalty->amount,
-                'reason' => $penalty->name . ' - ' . $event->title,
+                'participant_type' => $participantType,
+                'amount' => $amount,
+                'reason' => $penalty->name.' ('.$type.') - '.$event->title,
                 'due_date' => now()->addDays(30),
                 'payment_status' => 'unpaid',
                 'clearance_status' => 'pending',
-            ]);
+                'blocks_eligibility' => true,
+            ];
 
-            $this->updateStudentLedger($studentId);
+            if ($participantType === 'staff') {
+                $debtData['staff_id'] = $participantId;
+            } else {
+                $debtData['student_id'] = $participantId;
+            }
+
+            try {
+                AttendanceDebt::create($debtData);
+
+                if ($participantType === 'student') {
+                    $this->updateStudentLedger($participantId);
+                }
+            } catch (\Exception $e) {
+                Log::error("Failed to create {$type} debt for {$participantType} #{$participantId} in event {$event->id}: ".$e->getMessage());
+            }
         }
     }
 
@@ -186,7 +328,7 @@ class EventLifecycleService
                 ->where('status_id', $presentStatusId)
                 ->exists();
 
-            if (!$attended) {
+            if (! $attended) {
                 AttendanceStaffCompliance::create([
                     'staff_id' => $staffId,
                     'institutional_event_id' => $event->id,

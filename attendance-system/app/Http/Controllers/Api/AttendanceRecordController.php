@@ -89,11 +89,12 @@ class AttendanceRecordController extends Controller
             try {
                 $records = array_map(function ($record) use ($studentId) {
                     $record['student_id'] = $studentId;
+
                     return $record;
                 }, $request->records);
                 AttendanceRecord::insert($records);
 
-                return response()->json(['message' => count($request->records) . ' attendance records created successfully.'], 201);
+                return response()->json(['message' => count($request->records).' attendance records created successfully.'], 201);
             } catch (\Exception $e) {
                 return response()->json(['message' => 'Failed to create attendance records.', 'error' => $e->getMessage()], 500);
             }
@@ -122,7 +123,7 @@ class AttendanceRecordController extends Controller
         $includes = $this->parseIncludes($request, ['status', 'session', 'venue', 'session.venue']);
         $record = AttendanceRecord::with($includes)->find($id);
 
-        if (!$record) {
+        if (! $record) {
             return response()->json(['message' => 'Attendance record not found.'], 404);
         }
 
@@ -133,6 +134,7 @@ class AttendanceRecordController extends Controller
     {
         $model = AttendanceRecord::withTrashed()->findOrFail($id);
         $model->restore();
+
         return response()->json(['message' => 'Restored successfully.']);
     }
 
@@ -140,12 +142,13 @@ class AttendanceRecordController extends Controller
     {
         $model = AttendanceRecord::withTrashed()->findOrFail($id);
         $model->forceDelete();
+
         return response()->json(['message' => 'Permanently deleted.']);
     }
 
     private function parseIncludes(Request $request, array $allowed): array
     {
-        if (!$request->filled('include')) {
+        if (! $request->filled('include')) {
             return [];
         }
 

@@ -10,22 +10,22 @@ class VunaApplicantFee extends Model
     use HasFactory;
 
     protected $fillable = [
-            'user_id',
-            'student_id',
-            'applicant_bio_data_id',
-            'adm_year',
-            'vu_session_id',
-            'admissions_type_id',
-            'application_fee_id',
-            'rrr_application_fee_id',
-            'amount',
-            'payment_reference',
-            'status_code',
-            'transaction_id',
-            'rrr',
-            'processor_id',
-            'paid_amount',
-            'payment_status',
+        'user_id',
+        'student_id',
+        'applicant_bio_data_id',
+        'adm_year',
+        'vu_session_id',
+        'admissions_type_id',
+        'application_fee_id',
+        'rrr_application_fee_id',
+        'amount',
+        'payment_reference',
+        'status_code',
+        'transaction_id',
+        'rrr',
+        'processor_id',
+        'paid_amount',
+        'payment_status',
     ];
 
     public function user()

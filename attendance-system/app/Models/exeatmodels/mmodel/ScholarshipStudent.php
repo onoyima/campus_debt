@@ -37,10 +37,9 @@ class ScholarshipStudent extends Model
     {
         return $this->belongsTo(ScholarshipBody::class);
     }
+
     public function vu_session()
     {
         return $this->belongsTo(VuSession::class);
     }
-
 }
-

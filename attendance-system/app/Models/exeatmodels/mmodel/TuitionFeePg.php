@@ -48,25 +48,25 @@ class TuitionFeePg extends Model
         return $this->belongsTo(VunaAdmissionPg::class);
     }
 
-/*     public function vuna_accomodation()
-    {
-        return $this->belongsTo(VunaAccomodation::class);
-    } */
+    /*     public function vuna_accomodation()
+        {
+            return $this->belongsTo(VunaAccomodation::class);
+        } */
 
     public function vuna_tuition_fee_pg()
     {
         return $this->belongsTo(VunaTuitionFeePg::class);
     }
 
-/*     public function outstanding_fee()
-    {
-        return $this->hasOne(OutstandingFee::class);
-    } */
+    /*     public function outstanding_fee()
+        {
+            return $this->hasOne(OutstandingFee::class);
+        } */
 
-/*     public function vuna_accomodation_history()
-    {
-        return $this->hasOne(VunaAccomodationHistory::class);
-    } */
+    /*     public function vuna_accomodation_history()
+        {
+            return $this->hasOne(VunaAccomodationHistory::class);
+        } */
 
     public function admissions_type()
     {

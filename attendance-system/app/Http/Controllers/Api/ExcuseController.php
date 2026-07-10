@@ -26,6 +26,7 @@ class ExcuseController extends Controller
         }
 
         $records = $query->orderBy('created_at', 'desc')->paginate($perPage);
+
         return response()->json([
             'data' => $records->items(),
             'meta' => ['current_page' => $records->currentPage(), 'last_page' => $records->lastPage(), 'per_page' => $records->perPage(), 'total' => $records->total()],
@@ -40,20 +41,28 @@ class ExcuseController extends Controller
             'reason' => 'required|string',
             'approved_by' => 'required|integer',
         ]);
-        if ($validator->fails()) return response()->json(['errors' => $validator->errors()], 422);
+        if ($validator->fails()) {
+            return response()->json(['errors' => $validator->errors()], 422);
+        }
         try {
             $data = $validator->validated();
             $data['student_id'] = $studentId;
             $record = AttendanceExcuse::create($data);
+
             return response()->json(['data' => $record, 'message' => 'Excuse recorded successfully.'], 201);
-        } catch (\Exception $e) { return response()->json(['message' => 'Failed to record excuse.', 'error' => $e->getMessage()], 500); }
+        } catch (\Exception $e) {
+            return response()->json(['message' => 'Failed to record excuse.', 'error' => $e->getMessage()], 500);
+        }
     }
 
     public function show(Request $request, $id): JsonResponse
     {
         $studentId = $request->student?->id ?? auth()->id();
         $record = AttendanceExcuse::where('student_id', $studentId)->with($this->parseIncludes($request, []))->find($id);
-        if (!$record) return response()->json(['message' => 'Excuse not found.'], 404);
+        if (! $record) {
+            return response()->json(['message' => 'Excuse not found.'], 404);
+        }
+
         return response()->json(['data' => $record]);
     }
 
@@ -61,7 +70,9 @@ class ExcuseController extends Controller
     {
         $studentId = $request->student?->id ?? auth()->id();
         $record = AttendanceExcuse::where('student_id', $studentId)->find($id);
-        if (!$record) return response()->json(['message' => 'Excuse not found.'], 404);
+        if (! $record) {
+            return response()->json(['message' => 'Excuse not found.'], 404);
+        }
         $validator = Validator::make($request->all(), [
             'excuse_type' => 'sometimes|required|string|max:50',
             'reason' => 'sometimes|required|string',
@@ -69,24 +80,39 @@ class ExcuseController extends Controller
             'status' => 'sometimes|required|string|max:50',
             'approved_at' => 'nullable|date',
         ]);
-        if ($validator->fails()) return response()->json(['errors' => $validator->errors()], 422);
-        try { $record->update($validator->validated()); return response()->json(['data' => $record, 'message' => 'Excuse updated successfully.']); }
-        catch (\Exception $e) { return response()->json(['message' => 'Failed to update excuse.', 'error' => $e->getMessage()], 500); }
+        if ($validator->fails()) {
+            return response()->json(['errors' => $validator->errors()], 422);
+        }
+        try {
+            $record->update($validator->validated());
+
+            return response()->json(['data' => $record, 'message' => 'Excuse updated successfully.']);
+        } catch (\Exception $e) {
+            return response()->json(['message' => 'Failed to update excuse.', 'error' => $e->getMessage()], 500);
+        }
     }
 
     public function destroy(Request $request, $id): JsonResponse
     {
         $studentId = $request->student?->id ?? auth()->id();
         $record = AttendanceExcuse::where('student_id', $studentId)->find($id);
-        if (!$record) return response()->json(['message' => 'Excuse not found.'], 404);
-        try { $record->delete(); return response()->json(['message' => 'Deleted successfully.']); }
-        catch (\Exception $e) { return response()->json(['message' => 'Failed to delete excuse.', 'error' => $e->getMessage()], 500); }
+        if (! $record) {
+            return response()->json(['message' => 'Excuse not found.'], 404);
+        }
+        try {
+            $record->delete();
+
+            return response()->json(['message' => 'Deleted successfully.']);
+        } catch (\Exception $e) {
+            return response()->json(['message' => 'Failed to delete excuse.', 'error' => $e->getMessage()], 500);
+        }
     }
 
     public function restore(int $id): JsonResponse
     {
         $model = AttendanceExcuse::withTrashed()->findOrFail($id);
         $model->restore();
+
         return response()->json(['message' => 'Restored successfully.']);
     }
 
@@ -94,12 +120,16 @@ class ExcuseController extends Controller
     {
         $model = AttendanceExcuse::withTrashed()->findOrFail($id);
         $model->forceDelete();
+
         return response()->json(['message' => 'Permanently deleted.']);
     }
 
     private function parseIncludes(Request $request, array $allowed): array
     {
-        if (!$request->filled('include')) return [];
+        if (! $request->filled('include')) {
+            return [];
+        }
+
         return array_intersect(explode(',', $request->include), $allowed);
     }
 }

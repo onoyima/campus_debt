@@ -4,7 +4,6 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Attendance\AttendanceAuditTrail;
-use App\Services\GhostAdminService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -19,7 +18,7 @@ class AuditController extends Controller
         }
 
         if ($request->filled('auditable_type')) {
-            $query->where('auditable_type', 'like', '%' . $request->auditable_type);
+            $query->where('auditable_type', 'like', '%'.$request->auditable_type);
         }
 
         if ($request->filled('user_id')) {
@@ -43,6 +42,7 @@ class AuditController extends Controller
     public function show(int $id): JsonResponse
     {
         $log = AttendanceAuditTrail::findOrFail($id);
+
         return response()->json($log);
     }
 

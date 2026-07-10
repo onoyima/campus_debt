@@ -18,7 +18,7 @@ class AdminStaffAssignmentController extends Controller
         $perPage = $request->integer('per_page', 20);
 
         // If no semester specified, use the first active one for this session
-        if (!$vuSemesterId) {
+        if (! $vuSemesterId) {
             $vuSemesterId = Cache::remember('ca_default_semester', 3600, function () use ($academicSessionId) {
                 return DB::connection('mysql_remote')
                     ->table('vu_semesters')
@@ -56,17 +56,19 @@ class AdminStaffAssignmentController extends Controller
                 ->get();
 
             $grouped = $all->groupBy('course_id');
+
             return [
                 'total_assignments' => $all->count(),
                 'courses' => $grouped->map(function ($items, $courseId) {
                     $first = $items->first();
+
                     return [
                         'course_id' => $courseId,
                         'course_code' => $first->course_code,
                         'course_title' => $first->course_title,
                         'credit_load' => $first->credit_load,
                         'total_assignments' => $items->count(),
-                        'staff' => $items->map(fn($i) => [
+                        'staff' => $items->map(fn ($i) => [
                             'staff_id' => $i->staff_id,
                             'full_name' => trim("{$i->fname} {$i->mname} {$i->lname}"),
                             'course_assigned_id' => $i->course_assigned_id,
@@ -82,11 +84,18 @@ class AdminStaffAssignmentController extends Controller
         if ($search) {
             $needle = strtolower($search);
             $courses = $courses->filter(function ($c) use ($needle) {
-                if (str_contains(strtolower($c['course_code']), $needle)) return true;
-                if (str_contains(strtolower($c['course_title']), $needle)) return true;
-                foreach ($c['staff'] as $s) {
-                    if (str_contains(strtolower($s['full_name']), $needle)) return true;
+                if (str_contains(strtolower($c['course_code']), $needle)) {
+                    return true;
                 }
+                if (str_contains(strtolower($c['course_title']), $needle)) {
+                    return true;
+                }
+                foreach ($c['staff'] as $s) {
+                    if (str_contains(strtolower($s['full_name']), $needle)) {
+                        return true;
+                    }
+                }
+
                 return false;
             })->values();
         }
@@ -119,7 +128,7 @@ class AdminStaffAssignmentController extends Controller
             'data' => $paginated,
             'meta' => [
                 'current_page' => $page,
-                'last_page' => (int)ceil($total / $perPage),
+                'last_page' => (int) ceil($total / $perPage),
                 'per_page' => $perPage,
                 'total' => $total,
                 'total_assignments' => $totalAssignments,

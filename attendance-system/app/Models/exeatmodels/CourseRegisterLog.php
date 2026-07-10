@@ -23,7 +23,7 @@ class CourseRegisterLog extends Model
 
     public function student_academic()
     {
-        //return $this->hasOne(model, foreign_id, primary_id);
+        // return $this->hasOne(model, foreign_id, primary_id);
         return $this->belongsTo(StudentAcademic::class, 'student_id', 'student_id');
     }
 

@@ -17,10 +17,9 @@ class VunaTuitionFeePg extends Model
         'others',
     ];
 
-
     public function payment_inprogress_pg()
     {
-        //return $this->hasOne(model, foreign_id, primary_id);
+        // return $this->hasOne(model, foreign_id, primary_id);
         return $this->hasOne(PaymentInprogressPg::class);
     }
 
@@ -33,5 +32,4 @@ class VunaTuitionFeePg extends Model
     {
         return $this->hasMany(TuitionFeePg::class);
     }
-
 }

@@ -24,11 +24,11 @@ class NodeServiceController extends Controller
         try {
             $response = Http::timeout(10)
                 ->withHeaders($this->getApiKey() ? ['X-API-Key' => $this->getApiKey()] : [])
-                ->get($this->getBaseUrl() . $path);
+                ->get($this->getBaseUrl().$path);
 
             return response()->json($response->json(), $response->status());
         } catch (\Exception $e) {
-            return response()->json(['success' => false, 'error' => 'Node service unreachable: ' . $e->getMessage()], 502);
+            return response()->json(['success' => false, 'error' => 'Node service unreachable: '.$e->getMessage()], 502);
         }
     }
 
@@ -37,11 +37,11 @@ class NodeServiceController extends Controller
         try {
             $response = Http::timeout(10)
                 ->withHeaders($this->getApiKey() ? ['X-API-Key' => $this->getApiKey()] : [])
-                ->post($this->getBaseUrl() . $path, $data);
+                ->post($this->getBaseUrl().$path, $data);
 
             return response()->json($response->json(), $response->status());
         } catch (\Exception $e) {
-            return response()->json(['success' => false, 'error' => 'Node service unreachable: ' . $e->getMessage()], 502);
+            return response()->json(['success' => false, 'error' => 'Node service unreachable: '.$e->getMessage()], 502);
         }
     }
 
@@ -99,7 +99,8 @@ class NodeServiceController extends Controller
     private function checkConnection(): bool
     {
         try {
-            $response = Http::timeout(3)->get($this->getBaseUrl() . '/health');
+            $response = Http::timeout(3)->get($this->getBaseUrl().'/health');
+
             return $response->successful();
         } catch (\Exception $e) {
             return false;

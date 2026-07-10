@@ -78,87 +78,82 @@ class ApiService {
       this.logger?.warn?.('Failed to fetch active events', { error: e.message });
     }
 
-    const formatted = records.map(r => {
+    // Cache resolved user types to avoid redundant API calls
+    const typeCache = {};
+
+    const formatted = [];
+    for (const r of records) {
       const payload = r.payload || r;
       const userId = payload.user_id || payload.student_id || payload.staff_id;
       const scanTs = payload.timestamp || r.created_at || new Date().toISOString();
-      const now = new Date();
-      const currentTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
+      const scanDate = new Date(scanTs);
+      const scanTime = `${String(scanDate.getHours()).padStart(2, '0')}:${String(scanDate.getMinutes()).padStart(2, '0')}:${String(scanDate.getSeconds()).padStart(2, '0')}`;
+
+      // Resolve participant type via API (matches ZktService::resolveParticipantType logic)
+      if (!typeCache[userId]) {
+        try {
+          const info = await this.resolveUserName(userId);
+          typeCache[userId] = info.type || 'student';
+        } catch {
+          typeCache[userId] = 'student';
+        }
+      }
+      const participantType = typeCache[userId];
 
       if (activeEvents.length > 0) {
-        // Find the event where this user is a registered participant,
-        // and capture the participant_type from the matched participant entry
-        let matchedEvent = null;
-        let matchedParticipant = null;
+        // Find the first active event (preferring one whose time window matches the scan time)
+        let matchedEvent = activeEvents[0];
         for (const event of activeEvents) {
-          const participant = (event.participants || []).find(
-            p => String(p.participant_id) === String(userId)
-          );
-          if (participant) {
+          if (event.attendance_open_time && event.attendance_close_time &&
+              scanTime >= event.attendance_open_time && scanTime <= event.attendance_close_time) {
             matchedEvent = event;
-            matchedParticipant = participant;
+            break;
+          }
+          if (event.clock_out_open_time && event.clock_out_close_time &&
+              scanTime >= event.clock_out_open_time && scanTime <= event.clock_out_close_time) {
+            matchedEvent = event;
             break;
           }
         }
 
-        if (matchedEvent) {
-          const clockType = this._resolveClockType(currentTime, matchedEvent);
-          return {
-            table_name: 'attendance_event_attendance',
-            action: 'create',
-            payload: {
-              institutional_event_id: matchedEvent.id,
-              participant_type: matchedParticipant.participant_type,
-              participant_id: parseInt(userId) || 0,
-              status_id: 1,
-              attendance_method: payload.method || 'fingerprint',
-              clock_type: clockType,
-              verified_by_terminal_id: payload.terminal_id || terminalId,
-              timestamp: scanTs,
-              venue_id: matchedEvent.venue_id,
-              sync_status: 'synced',
-            },
-            device_timestamp: scanTs,
-          };
-        }
+        const clockType = this._resolveClockType(scanTime, matchedEvent);
 
-        // User is not a registered participant for any active event
-        const firstEvent = activeEvents[0];
-        const expectedType = this._expectedParticipantType(firstEvent);
-        return {
-          table_name: 'attendance_event_unexpected',
+        formatted.push({
+          table_name: 'attendance_event_attendance',
           action: 'create',
           payload: {
-            institutional_event_id: firstEvent.id,
-            participant_type: expectedType === 'any' ? 'staff' : expectedType,
+            institutional_event_id: matchedEvent.id,
+            participant_type: participantType,
             participant_id: parseInt(userId) || 0,
-            expected_participant_type: expectedType,
-            reason: 'not_a_participant',
+            status_id: 1,
             attendance_method: payload.method || 'fingerprint',
+            clock_type: clockType,
+            is_visitor: false,
             verified_by_terminal_id: payload.terminal_id || terminalId,
             timestamp: scanTs,
-            venue_id: firstEvent.venue_id,
+            venue_id: matchedEvent.venue_id,
             sync_status: 'synced',
           },
           device_timestamp: scanTs,
-        };
+        });
+      } else {
+        formatted.push({
+          table_name: 'attendance_staff_clocking',
+          action: 'create',
+          payload: {
+            staff_id: parseInt(userId) || 0,
+            clock_type: 'in',
+            attendance_method: payload.method || 'fingerprint',
+            status_id: 1,
+            verified_by_terminal_id: payload.terminal_id || terminalId,
+            timestamp: scanTs,
+            sync_status: 'synced',
+          },
+          device_timestamp: scanTs,
+        });
       }
+    }
 
-      return {
-        table_name: 'attendance_staff_clocking',
-        action: 'create',
-        payload: {
-          staff_id: parseInt(userId) || 0,
-          clock_type: 'in',
-          attendance_method: payload.method || 'fingerprint',
-          status_id: 1,
-          verified_by_terminal_id: payload.terminal_id || terminalId,
-          timestamp: scanTs,
-          sync_status: 'synced',
-        },
-        device_timestamp: scanTs,
-      };
-    });
     const response = await this.client.post('/terminals/zk/sync-batch', {
       terminal_id: terminalId || 0,
       records: formatted,

@@ -12,7 +12,7 @@ class CourseGradingSystem extends Model
     protected $fillable = [
         'course_study_id',
         'course_id',
-        'grading_category_id'
+        'grading_category_id',
     ];
 
     public function course()

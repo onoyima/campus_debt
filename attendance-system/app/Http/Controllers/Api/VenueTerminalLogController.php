@@ -24,6 +24,7 @@ class VenueTerminalLogController extends Controller
         }
 
         $records = $query->orderBy('created_at', 'desc')->paginate($perPage);
+
         return response()->json([
             'data' => $records->items(),
             'meta' => ['current_page' => $records->currentPage(), 'last_page' => $records->lastPage(), 'per_page' => $records->perPage(), 'total' => $records->total()],
@@ -33,7 +34,10 @@ class VenueTerminalLogController extends Controller
     public function show(Request $request, $id): JsonResponse
     {
         $record = AttendanceVenueTerminalLog::with($this->parseIncludes($request, []))->find($id);
-        if (!$record) return response()->json(['message' => 'Venue terminal log not found.'], 404);
+        if (! $record) {
+            return response()->json(['message' => 'Venue terminal log not found.'], 404);
+        }
+
         return response()->json(['data' => $record]);
     }
 
@@ -41,6 +45,7 @@ class VenueTerminalLogController extends Controller
     {
         $model = AttendanceVenueTerminalLog::withTrashed()->findOrFail($id);
         $model->restore();
+
         return response()->json(['message' => 'Restored successfully.']);
     }
 
@@ -48,12 +53,16 @@ class VenueTerminalLogController extends Controller
     {
         $model = AttendanceVenueTerminalLog::withTrashed()->findOrFail($id);
         $model->forceDelete();
+
         return response()->json(['message' => 'Permanently deleted.']);
     }
 
     private function parseIncludes(Request $request, array $allowed): array
     {
-        if (!$request->filled('include')) return [];
+        if (! $request->filled('include')) {
+            return [];
+        }
+
         return array_intersect(explode(',', $request->include), $allowed);
     }
 }

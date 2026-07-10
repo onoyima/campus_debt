@@ -4,8 +4,8 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
@@ -116,17 +116,17 @@ class Message extends Model
     public function isReadBy($user): bool
     {
         $readerType = $user instanceof Student ? Student::class : Staff::class;
-        
+
         return $this->readReceipts()
-                   ->where('reader_id', $user->id)
-                   ->where('reader_type', $readerType)
-                   ->exists();
+            ->where('reader_id', $user->id)
+            ->where('reader_type', $readerType)
+            ->exists();
     }
 
     public function markAsRead($user): void
     {
         $readerType = $user instanceof Student ? Student::class : Staff::class;
-        
+
         $this->readReceipts()->firstOrCreate([
             'reader_id' => $user->id,
             'reader_type' => $readerType,
@@ -142,7 +142,7 @@ class Message extends Model
 
     public function markAsDelivered(): void
     {
-        if (!$this->delivered_at) {
+        if (! $this->delivered_at) {
             $this->update([
                 'status' => 'delivered',
                 'delivered_at' => now(),
@@ -158,20 +158,20 @@ class Message extends Model
     public function canEdit($user): bool
     {
         $senderType = $user instanceof Student ? Student::class : Staff::class;
-        
-        return $this->sender_id === $user->id && 
+
+        return $this->sender_id === $user->id &&
                $this->sender_type === $senderType &&
-               !$this->is_deleted &&
+               ! $this->is_deleted &&
                $this->created_at->diffInMinutes(now()) < 15; // 15-minute edit window
     }
 
     public function canDelete($user): bool
     {
         $senderType = $user instanceof Student ? Student::class : Staff::class;
-        
+
         // Sender can delete their own messages
         $isSender = $this->sender_id === $user->id && $this->sender_type === $senderType;
-        
+
         // Admins can delete any message
         $isAdmin = false;
         if ($user instanceof Staff) {

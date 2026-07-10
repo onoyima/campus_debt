@@ -32,6 +32,4 @@ class RrrApplicationFee extends Model
     {
         return $this->hasOne(VunaApplicantFeePg::class);
     }
-
-
 }

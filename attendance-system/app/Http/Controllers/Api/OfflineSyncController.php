@@ -35,6 +35,7 @@ class OfflineSyncController extends Controller
         }
 
         $records = $query->orderBy('created_at', 'desc')->paginate($perPage);
+
         return response()->json([
             'data' => $records->items(),
             'meta' => ['current_page' => $records->currentPage(), 'last_page' => $records->lastPage(), 'per_page' => $records->perPage(), 'total' => $records->total()],
@@ -85,7 +86,7 @@ class OfflineSyncController extends Controller
             }
         }
 
-        $successCount = count(array_filter($created, fn($c) => $c['success']));
+        $successCount = count(array_filter($created, fn ($c) => $c['success']));
         $failCount = count($created) - $successCount;
 
         return response()->json([
@@ -97,7 +98,10 @@ class OfflineSyncController extends Controller
     public function show(Request $request, $id): JsonResponse
     {
         $record = AttendanceOfflinePendingSync::with($this->parseIncludes($request, []))->find($id);
-        if (!$record) return response()->json(['message' => 'Offline sync record not found.'], 404);
+        if (! $record) {
+            return response()->json(['message' => 'Offline sync record not found.'], 404);
+        }
+
         return response()->json(['data' => $record]);
     }
 
@@ -106,6 +110,7 @@ class OfflineSyncController extends Controller
         try {
             $result = $this->syncService->processSyncRecord((int) $id);
             $statusCode = $result['success'] ? 200 : 422;
+
             return response()->json([
                 'data' => $result,
                 'message' => $result['success'] ? 'Sync record processed successfully.' : ($result['error'] ?? 'Failed to process sync record.'),
@@ -120,6 +125,7 @@ class OfflineSyncController extends Controller
         try {
             $terminalId = $request->filled('terminal_id') ? (int) $request->terminal_id : null;
             $result = $this->syncService->processAllPending($terminalId);
+
             return response()->json([
                 'data' => $result,
                 'message' => "Processed {$result['total']} records: {$result['successful']} ok, {$result['failed']} failed.",
@@ -149,6 +155,7 @@ class OfflineSyncController extends Controller
     {
         $model = AttendanceOfflinePendingSync::withTrashed()->findOrFail($id);
         $model->restore();
+
         return response()->json(['message' => 'Restored successfully.']);
     }
 
@@ -156,12 +163,16 @@ class OfflineSyncController extends Controller
     {
         $model = AttendanceOfflinePendingSync::withTrashed()->findOrFail($id);
         $model->forceDelete();
+
         return response()->json(['message' => 'Permanently deleted.']);
     }
 
     private function parseIncludes(Request $request, array $allowed): array
     {
-        if (!$request->filled('include')) return [];
+        if (! $request->filled('include')) {
+            return [];
+        }
+
         return array_intersect(explode(',', $request->include), $allowed);
     }
 }

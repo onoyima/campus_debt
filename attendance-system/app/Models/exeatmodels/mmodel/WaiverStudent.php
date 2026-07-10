@@ -19,7 +19,7 @@ class WaiverStudent extends Model
         'duration',
         'message',
         'processed_by',
-        'status'
+        'status',
     ];
 
     public function vu_session()
@@ -36,5 +36,4 @@ class WaiverStudent extends Model
     {
         return $this->belongsTo(Staff::class);
     }
-
 }

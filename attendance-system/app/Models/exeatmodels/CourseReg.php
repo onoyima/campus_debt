@@ -1,25 +1,25 @@
 <?php
 
-//is_course_reg:
+// is_course_reg:
 // 0 = added_to_poll_but_not_registered; //NO LONGER APPLICABLE
 // 1 = Selected courses from a level poll for semesterial registration; //NO LONGER APPLICABLE
 // 2 = registered
 // 3 = deleted courses
 
-//is_carry_over:
+// is_carry_over:
 // 1 = first carry over
 // 2 = registered carryover
 // 3 = Re-registered carryover that need not to be re-registered but can only be used for computation
 // 4 = Passed carryover
 
-//Column to be added
-//correction 1 = Approved for correction by VC; 2 = SBC; 3=AU; 4=Dean; 5=Department; 6=Lecturer
+// Column to be added
+// correction 1 = Approved for correction by VC; 2 = SBC; 3=AU; 4=Dean; 5=Department; 6=Lecturer
 // 11 = Correction Approved by VC; 10 = SBC; 9=AU; 8=Dean; 7=Department;
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
 
 class CourseReg extends Model
 {
@@ -43,7 +43,7 @@ class CourseReg extends Model
         'grade',
         'course_deprtment_id',
         'staff_id',
-        'offer_method',   //How is the course taught 1=general 2=departments 3=groups
+        'offer_method',   // How is the course taught 1=general 2=departments 3=groups
         'department_id',
         'course_study_id',
         'semester_offered',
@@ -59,7 +59,6 @@ class CourseReg extends Model
     {
         return $this->belongsTo(CourseAssigned::class);
     }
-
 
     public function academic_session()
     {
@@ -95,6 +94,7 @@ class CourseReg extends Model
     {
         return $this->belongsTo(AssignedCourse::class);
     }
+
     public function departmental_reg()
     {
         return $this->belongsTo(DepartmentalReg::class);
@@ -124,9 +124,4 @@ class CourseReg extends Model
     {
         return $this->belongsTo(AssignedCourse::class);
     }
-
-
-
-
-
 }

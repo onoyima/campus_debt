@@ -42,11 +42,22 @@ class AdminPortalRoleController extends Controller
         if ($search) {
             $needle = strtolower($search);
             $result = $result->filter(function ($r) use ($needle) {
-                if (mb_strpos(mb_strtolower($r->fname), $needle) !== false) return true;
-                if (mb_strpos(mb_strtolower($r->lname), $needle) !== false) return true;
-                if (mb_strpos(mb_strtolower($r->mname), $needle) !== false) return true;
-                if ($r->email && mb_strpos(mb_strtolower($r->email), $needle) !== false) return true;
-                if (mb_strpos(mb_strtolower($r->role_name), $needle) !== false) return true;
+                if (mb_strpos(mb_strtolower($r->fname), $needle) !== false) {
+                    return true;
+                }
+                if (mb_strpos(mb_strtolower($r->lname), $needle) !== false) {
+                    return true;
+                }
+                if (mb_strpos(mb_strtolower($r->mname), $needle) !== false) {
+                    return true;
+                }
+                if ($r->email && mb_strpos(mb_strtolower($r->email), $needle) !== false) {
+                    return true;
+                }
+                if (mb_strpos(mb_strtolower($r->role_name), $needle) !== false) {
+                    return true;
+                }
+
                 return false;
             })->values();
         }
@@ -59,12 +70,13 @@ class AdminPortalRoleController extends Controller
 
         $data = collect($pageItems)->groupBy('staff_id')->map(function ($items, $staffId) {
             $first = $items->first();
+
             return [
                 'staff_id' => $staffId,
                 'full_name' => trim("{$first->fname} {$first->mname} {$first->lname}"),
                 'email' => $first->email,
                 'total_roles' => $items->count(),
-                'roles' => $items->map(fn($i) => [
+                'roles' => $items->map(fn ($i) => [
                     'assignment_id' => $i->id,
                     'role_id' => $i->role_id,
                     'role_name' => $i->role_name,
@@ -77,7 +89,7 @@ class AdminPortalRoleController extends Controller
             'data' => $data,
             'meta' => [
                 'current_page' => $page,
-                'last_page' => (int)ceil($total / $perPage),
+                'last_page' => (int) ceil($total / $perPage),
                 'per_page' => $perPage,
                 'total' => $total,
             ],

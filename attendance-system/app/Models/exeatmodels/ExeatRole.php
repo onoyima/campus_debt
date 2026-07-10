@@ -8,9 +8,11 @@ use Illuminate\Database\Eloquent\Model;
 class ExeatRole extends Model
 {
     use HasFactory;
+
     protected $table = 'exeat_roles';
+
     protected $fillable = [
-        'name', 'display_name', 'description'
+        'name', 'display_name', 'description',
     ];
 
     public function staffAssignments()
@@ -19,8 +21,7 @@ class ExeatRole extends Model
     }
 
     public function staff()
-{
-    return $this->belongsToMany(Staff::class, 'staff_exeat_roles', 'exeat_role_id', 'staff_id');
+    {
+        return $this->belongsToMany(Staff::class, 'staff_exeat_roles', 'exeat_role_id', 'staff_id');
+    }
 }
-
-} 

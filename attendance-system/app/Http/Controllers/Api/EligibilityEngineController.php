@@ -19,6 +19,7 @@ class EligibilityEngineController extends Controller
                 $eligibility->update(['last_evaluated_at' => now()]);
                 $updated++;
             }
+
             return response()->json(['message' => "Eligibility evaluated for {$updated} records."]);
         } catch (\Exception $e) {
             return response()->json(['message' => 'Failed to evaluate eligibility.', 'error' => $e->getMessage()], 500);
@@ -31,7 +32,9 @@ class EligibilityEngineController extends Controller
             'student_id' => 'required|integer',
         ]);
 
-        if ($validator->fails()) return response()->json(['errors' => $validator->errors()], 422);
+        if ($validator->fails()) {
+            return response()->json(['errors' => $validator->errors()], 422);
+        }
 
         try {
             $eligibilities = AttendanceExamEligibility::where('student_id', $request->student_id)->get();
@@ -40,6 +43,7 @@ class EligibilityEngineController extends Controller
                 $eligibility->update(['last_evaluated_at' => now()]);
                 $updated++;
             }
+
             return response()->json(['message' => "Eligibility evaluated for student {$request->student_id} ({$updated} records)."]);
         } catch (\Exception $e) {
             return response()->json(['message' => 'Failed to evaluate student eligibility.', 'error' => $e->getMessage()], 500);
@@ -53,7 +57,9 @@ class EligibilityEngineController extends Controller
             'course_id' => 'required|integer',
         ]);
 
-        if ($validator->fails()) return response()->json(['errors' => $validator->errors()], 422);
+        if ($validator->fails()) {
+            return response()->json(['errors' => $validator->errors()], 422);
+        }
 
         try {
             $eligibility = AttendanceExamEligibility::updateOrCreate(
@@ -63,6 +69,7 @@ class EligibilityEngineController extends Controller
                 ],
                 ['last_evaluated_at' => now()]
             );
+
             return response()->json(['data' => $eligibility, 'message' => 'Eligibility evaluated for course.']);
         } catch (\Exception $e) {
             return response()->json(['message' => 'Failed to evaluate course eligibility.', 'error' => $e->getMessage()], 500);
@@ -71,7 +78,10 @@ class EligibilityEngineController extends Controller
 
     private function parseIncludes(Request $request, array $allowed): array
     {
-        if (!$request->filled('include')) return [];
+        if (! $request->filled('include')) {
+            return [];
+        }
+
         return array_intersect(explode(',', $request->include), $allowed);
     }
 }

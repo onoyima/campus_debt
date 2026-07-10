@@ -35,5 +35,4 @@ class DepartmentalReg extends Model
     {
         return $this->hasMany(CourseReg::class);
     }
-    
 }

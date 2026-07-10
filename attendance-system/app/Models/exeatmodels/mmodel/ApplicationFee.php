@@ -34,5 +34,4 @@ class ApplicationFee extends Model
     {
         return $this->hasMany(RrrApplicationFee::class);
     }
-
 }

@@ -8,7 +8,9 @@ use Illuminate\Database\Eloquent\Model;
 class ExeatCategory extends Model
 {
     use HasFactory;
+
     protected $table = 'exeat_categories';
+
     protected $fillable = [
         'name', // e.g. Medical, Holiday, Daily, Sleepover, Emergency
         'description',

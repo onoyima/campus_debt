@@ -26,7 +26,7 @@ class ExeatDebtCheckController extends Controller
         $ledger = AttendanceStudentDebtLedger::where('student_id', $studentId)->first();
 
         return response()->json([
-            'can_submit_exeat' => !$hasOutstandingDebt,
+            'can_submit_exeat' => ! $hasOutstandingDebt,
             'blocked' => $hasOutstandingDebt,
             'reason' => $hasOutstandingDebt ? 'outstanding_debts' : null,
             'outstanding_debts' => $totalOutstanding,

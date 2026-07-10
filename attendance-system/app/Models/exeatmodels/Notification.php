@@ -12,6 +12,7 @@ class Notification extends Model
     use HasFactory;
 
     protected $keyType = 'string';
+
     public $incrementing = false;
 
     protected $fillable = [
@@ -26,7 +27,7 @@ class Notification extends Model
         'channel',
         'status',
         'message',
-        'sent_at'
+        'sent_at',
     ];
 
     protected $casts = [
@@ -40,7 +41,7 @@ class Notification extends Model
     protected static function boot()
     {
         parent::boot();
-        
+
         static::creating(function ($model) {
             if (empty($model->id)) {
                 $model->id = (string) Str::uuid();
@@ -88,7 +89,7 @@ class Notification extends Model
      */
     public function markAsUnread(): void
     {
-        if (!is_null($this->read_at)) {
+        if (! is_null($this->read_at)) {
             $this->forceFill(['read_at' => null])->save();
         }
     }

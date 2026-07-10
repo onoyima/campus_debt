@@ -159,7 +159,7 @@ class EventParticipantEnrollmentService
         }
     }
 
-    protected function getParticipantType(string $targetType): string
+    public function getParticipantType(string $targetType): string
     {
         return match ($targetType) {
             'all_students', 'undergraduate', 'postgraduate', 'diploma', 'foundation',

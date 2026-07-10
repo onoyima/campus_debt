@@ -14,7 +14,7 @@ class CheckStaffAccess
     {
         $user = $request->user();
 
-        if (!$user) {
+        if (! $user) {
             return response()->json(['message' => 'Unauthenticated.'], 401);
         }
 
@@ -25,7 +25,7 @@ class CheckStaffAccess
 
         $staff = Staff::find($user->id);
 
-        if (!$staff) {
+        if (! $staff) {
             return response()->json(['message' => 'Access denied. Staff only.'], 403);
         }
 

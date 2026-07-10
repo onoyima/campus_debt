@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use App\Mail\WeekdayAbsenceNotification;
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
@@ -115,7 +117,7 @@ class ExeatRequest extends Model
 
         $weekdaysCovered = $this->getWeekdaysCovered();
 
-        if (!empty($weekdaysCovered)) {
+        if (! empty($weekdaysCovered)) {
             $this->sendWeekdayNotification($weekdaysCovered);
         }
     }
@@ -123,8 +125,8 @@ class ExeatRequest extends Model
     // Get weekdays covered by the exeat request
     public function getWeekdaysCovered(): array
     {
-        $departureDate = \Carbon\Carbon::parse($this->departure_date);
-        $returnDate = \Carbon\Carbon::parse($this->return_date);
+        $departureDate = Carbon::parse($this->departure_date);
+        $returnDate = Carbon::parse($this->return_date);
         $weekdays = [];
 
         $currentDate = $departureDate->copy();
@@ -157,7 +159,7 @@ class ExeatRequest extends Model
             $message .= "Return Date: {$this->return_date}\n";
             $message .= "Weekdays Covered: {$weekdaysList}\n\n";
             $message .= "This student has applied to be absent during weekdays.\n\n";
-            $message .= "— VERITAS University Exeat Management System";
+            $message .= '— VERITAS University Exeat Management System';
 
             $adminEmail = config('mail.from.address');
             if (is_string($adminEmail) && trim($adminEmail) !== '') {
@@ -175,7 +177,7 @@ class ExeatRequest extends Model
 
             // Lookup Emails
             $hodEmail = config("departments.emails.{$deptCode}");
-            $qaEmails = config("departments.qa_emails", []);
+            $qaEmails = config('departments.qa_emails', []);
 
             $recipients = [];
             $ccList = [];
@@ -183,17 +185,17 @@ class ExeatRequest extends Model
             if ($hodEmail && filter_var($hodEmail, FILTER_VALIDATE_EMAIL)) {
                 $recipients[] = $hodEmail;
                 $ccList = $qaEmails;
-            } elseif (!empty($qaEmails)) {
+            } elseif (! empty($qaEmails)) {
                 // If no HOD email, send directly to QA
                 $recipients = [$qaEmails[0]];
                 $ccList = array_slice($qaEmails, 1);
                 \Log::info('HOD email missing for department, sending directly to QA', ['dept' => $deptCode]);
             }
 
-            if (!empty($recipients)) {
-                $mailable = new \App\Mail\WeekdayAbsenceNotification($this, $student, $weekdays, $deptCode);
+            if (! empty($recipients)) {
+                $mailable = new WeekdayAbsenceNotification($this, $student, $weekdays, $deptCode);
 
-                if (!empty($ccList)) {
+                if (! empty($ccList)) {
                     $mailable->cc($ccList);
                 }
 
@@ -201,16 +203,16 @@ class ExeatRequest extends Model
 
                 \Log::info('Weekday absence notification triggered', [
                     'recipients' => $recipients,
-                    'department' => $deptCode
+                    'department' => $deptCode,
                 ]);
             } else {
-                \Log::warning("No valid recipients (HOD or QA) found for weekday notification - Skipped");
+                \Log::warning('No valid recipients (HOD or QA) found for weekday notification - Skipped');
             }
 
         } catch (\Exception $e) {
             \Log::error('Failed to send weekday absence notification', [
                 'exeat_request_id' => $this->id,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
         }
     }
@@ -247,8 +249,8 @@ class ExeatRequest extends Model
     public function isOverdue()
     {
         return $this->return_date < now()->toDateString()
-            && !$this->is_expired
-            && !in_array($this->status, ['security_signin', 'hostel_signin', 'completed', 'rejected']);
+            && ! $this->is_expired
+            && ! in_array($this->status, ['security_signin', 'hostel_signin', 'completed', 'rejected']);
     }
 
     /**
@@ -259,7 +261,7 @@ class ExeatRequest extends Model
         return $this->update([
             'is_expired' => true,
             'expired_at' => now(),
-            'status' => 'completed'
+            'status' => 'completed',
         ]);
     }
 
@@ -269,8 +271,9 @@ class ExeatRequest extends Model
     public function getStatusDisplayAttribute()
     {
         if ($this->is_expired) {
-            return $this->status . ' (Expired)';
+            return $this->status.' (Expired)';
         }
+
         return $this->status;
     }
 }

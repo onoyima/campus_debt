@@ -18,6 +18,8 @@ class AttendancePenaltySchedule extends Model
         'description',
         'penalty_type',
         'amount',
+        'student_amount',
+        'staff_amount',
         'applicable_to',
         'applies_to_late',
         'applies_to_absence',
@@ -37,6 +39,15 @@ class AttendancePenaltySchedule extends Model
             'effective_date' => 'date',
             'expiry_date' => 'date',
         ];
+    }
+
+    public function getAmountForType(string $participantType): float
+    {
+        return match ($participantType) {
+            'student' => (float) ($this->student_amount ?: $this->amount),
+            'staff' => (float) ($this->staff_amount ?: $this->amount),
+            default => (float) $this->amount,
+        };
     }
 
     // references remote staff.id

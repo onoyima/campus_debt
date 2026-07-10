@@ -3,8 +3,8 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Models\Attendance\AttendanceSession;
 use App\Models\Attendance\AttendanceRecord;
+use App\Models\Attendance\AttendanceSession;
 use App\Services\AutoAbsentMarkService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -104,7 +104,7 @@ class SessionController extends Controller
             $session->load('venue');
             $session->loadCount('records');
 
-            if (($data['status'] ?? null) === 'active' && !empty($data['course_assigned_id'])) {
+            if (($data['status'] ?? null) === 'active' && ! empty($data['course_assigned_id'])) {
                 app(AutoAbsentMarkService::class)->markAbsentForSession($session);
             }
 
@@ -119,7 +119,7 @@ class SessionController extends Controller
         $includes = $this->parseIncludes($request, ['venue', 'records', 'institutionalEvent']);
         $session = AttendanceSession::with($includes)->withCount('records')->find($id);
 
-        if (!$session) {
+        if (! $session) {
             return response()->json(['message' => 'Session not found.'], 404);
         }
 
@@ -144,7 +144,7 @@ class SessionController extends Controller
     {
         $session = AttendanceSession::find($id);
 
-        if (!$session) {
+        if (! $session) {
             return response()->json(['message' => 'Session not found.'], 404);
         }
 
@@ -173,7 +173,7 @@ class SessionController extends Controller
             $session->load('venue');
             $session->loadCount('records');
 
-            $becameActive = ($data['status'] ?? null) === 'active' || (!$wasActive && $session->status === 'active');
+            $becameActive = ($data['status'] ?? null) === 'active' || (! $wasActive && $session->status === 'active');
             if ($becameActive && $session->course_assigned_id) {
                 app(AutoAbsentMarkService::class)->markAbsentForSession($session);
             }
@@ -188,7 +188,7 @@ class SessionController extends Controller
     {
         $session = AttendanceSession::find($id);
 
-        if (!$session) {
+        if (! $session) {
             return response()->json(['message' => 'Session not found.'], 404);
         }
 
@@ -269,24 +269,29 @@ class SessionController extends Controller
                 $opensAt = trim($row['opens_at'] ?? '');
                 $closesAt = trim($row['closes_at'] ?? '');
 
-                if (!$staffId || !is_numeric($staffId)) {
-                    $failed[] = "Row " . ($i + 2) . ": invalid or missing staff_id";
+                if (! $staffId || ! is_numeric($staffId)) {
+                    $failed[] = 'Row '.($i + 2).': invalid or missing staff_id';
+
                     continue;
                 }
-                if (!$sessionType) {
-                    $failed[] = "Row " . ($i + 2) . " (staff {$staffId}): missing session_type";
+                if (! $sessionType) {
+                    $failed[] = 'Row '.($i + 2)." (staff {$staffId}): missing session_type";
+
                     continue;
                 }
-                if (!$sessionDate) {
-                    $failed[] = "Row " . ($i + 2) . " (staff {$staffId}): missing session_date";
+                if (! $sessionDate) {
+                    $failed[] = 'Row '.($i + 2)." (staff {$staffId}): missing session_date";
+
                     continue;
                 }
-                if (!$opensAt) {
-                    $failed[] = "Row " . ($i + 2) . " (staff {$staffId}): missing opens_at";
+                if (! $opensAt) {
+                    $failed[] = 'Row '.($i + 2)." (staff {$staffId}): missing opens_at";
+
                     continue;
                 }
-                if (!$closesAt) {
-                    $failed[] = "Row " . ($i + 2) . " (staff {$staffId}): missing closes_at";
+                if (! $closesAt) {
+                    $failed[] = 'Row '.($i + 2)." (staff {$staffId}): missing closes_at";
+
                     continue;
                 }
 
@@ -313,12 +318,12 @@ class SessionController extends Controller
 
                     $created++;
                 } catch (\Exception $e) {
-                    $failed[] = "Row " . ($i + 2) . " (staff {$staffId}): " . $e->getMessage();
+                    $failed[] = 'Row '.($i + 2)." (staff {$staffId}): ".$e->getMessage();
                 }
             }
 
             return response()->json([
-                'message' => "{$created} session(s) created. " . count($failed) . " row(s) failed.",
+                'message' => "{$created} session(s) created. ".count($failed).' row(s) failed.',
                 'created' => $created,
                 'failed' => $failed,
             ]);
@@ -331,6 +336,7 @@ class SessionController extends Controller
     {
         $model = AttendanceSession::withTrashed()->findOrFail($id);
         $model->restore();
+
         return response()->json(['message' => 'Restored successfully.']);
     }
 
@@ -338,12 +344,13 @@ class SessionController extends Controller
     {
         $model = AttendanceSession::withTrashed()->findOrFail($id);
         $model->forceDelete();
+
         return response()->json(['message' => 'Permanently deleted.']);
     }
 
     private function parseIncludes(Request $request, array $allowed): array
     {
-        if (!$request->filled('include')) {
+        if (! $request->filled('include')) {
             return [];
         }
 

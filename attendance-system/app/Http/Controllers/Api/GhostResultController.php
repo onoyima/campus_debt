@@ -5,8 +5,8 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 
 class GhostResultController extends Controller
 {
@@ -18,13 +18,14 @@ class GhostResultController extends Controller
                 ->orderBy('session', 'desc')
                 ->get(['id', 'session', 'status']);
         });
+
         return response()->json($sessions);
     }
 
     public function semesters(Request $request): JsonResponse
     {
         $vuSessionId = $request->input('vu_session_id');
-        if (!$vuSessionId) {
+        if (! $vuSessionId) {
             return response()->json([]);
         }
         $key = "ghost_semesters_{$vuSessionId}";
@@ -39,13 +40,14 @@ class GhostResultController extends Controller
                 ->orderBy('vu_semesters.semester_id')
                 ->get();
         });
+
         return response()->json($semesters);
     }
 
     public function searchStudents(Request $request): JsonResponse
     {
         $q = $request->input('q');
-        if (!$q || strlen(trim($q)) < 1) {
+        if (! $q || strlen(trim($q)) < 1) {
             return response()->json([]);
         }
 
@@ -74,12 +76,25 @@ class GhostResultController extends Controller
 
         $qLower = strtolower($q);
         $results = $students->filter(function ($s) use ($q, $qLower, $isNumeric) {
-            if ($isNumeric && $s->id == $q) return true;
-            if ($s->matric_no && str_contains(strtolower($s->matric_no), $qLower)) return true;
-            if (str_contains(strtolower($s->fname ?? ''), $qLower)) return true;
-            if (str_contains(strtolower($s->mname ?? ''), $qLower)) return true;
-            if (str_contains(strtolower($s->lname ?? ''), $qLower)) return true;
-            if ($s->email && str_contains(strtolower($s->email), $qLower)) return true;
+            if ($isNumeric && $s->id == $q) {
+                return true;
+            }
+            if ($s->matric_no && str_contains(strtolower($s->matric_no), $qLower)) {
+                return true;
+            }
+            if (str_contains(strtolower($s->fname ?? ''), $qLower)) {
+                return true;
+            }
+            if (str_contains(strtolower($s->mname ?? ''), $qLower)) {
+                return true;
+            }
+            if (str_contains(strtolower($s->lname ?? ''), $qLower)) {
+                return true;
+            }
+            if ($s->email && str_contains(strtolower($s->email), $qLower)) {
+                return true;
+            }
+
             return false;
         })->take(30)->values();
 
@@ -237,10 +252,9 @@ class GhostResultController extends Controller
 
             $matchedGrade = null;
 
-            $courseGradingCat = $courseGrading->firstWhere(fn($c) => $c->course_id == $reg->course_id && $c->course_study_id == $courseStudyId);
+            $courseGradingCat = $courseGrading->firstWhere(fn ($c) => $c->course_id == $reg->course_id && $c->course_study_id == $courseStudyId);
             if ($courseGradingCat) {
-                $catGrades = $gradeSettings->filter(fn($g) =>
-                    $g->course_study_id == $courseGradingCat->course_study_id
+                $catGrades = $gradeSettings->filter(fn ($g) => $g->course_study_id == $courseGradingCat->course_study_id
                     && $g->grading_category_id == $courseGradingCat->grading_category_id
                 );
                 foreach ($catGrades as $g) {
@@ -251,7 +265,7 @@ class GhostResultController extends Controller
                 }
             }
 
-            if (!$matchedGrade && $gradePerProgram->isNotEmpty()) {
+            if (! $matchedGrade && $gradePerProgram->isNotEmpty()) {
                 foreach ($gradePerProgram as $g) {
                     if ($total >= $g->min_score && $total <= $g->max_score) {
                         $matchedGrade = $g;
@@ -260,7 +274,7 @@ class GhostResultController extends Controller
                 }
             }
 
-            if (!$matchedGrade) {
+            if (! $matchedGrade) {
                 foreach ($gradeDefaults as $g) {
                     if ($total >= $g->min_score && $total <= $g->max_score) {
                         $matchedGrade = $g;
@@ -269,7 +283,7 @@ class GhostResultController extends Controller
                 }
             }
 
-            if (!$matchedGrade) {
+            if (! $matchedGrade) {
                 $matchedGrade = $gradeDefaults->last();
             }
 
@@ -298,9 +312,9 @@ class GhostResultController extends Controller
             ];
 
             $isPublished = (int) $reg->is_vc_approval === 9;
-            $groupKey = $reg->vu_session_id . '_' . $reg->vu_semester_id;
+            $groupKey = $reg->vu_session_id.'_'.$reg->vu_semester_id;
 
-            if (!isset($grouped[$groupKey])) {
+            if (! isset($grouped[$groupKey])) {
                 $grouped[$groupKey] = [
                     'vu_session_id' => $reg->vu_session_id,
                     'vu_semester_id' => $reg->vu_semester_id,
@@ -335,7 +349,7 @@ class GhostResultController extends Controller
             $unpublishedGpa = $g['unpublished_total_credit'] > 0
                 ? round($g['unpublished_total_weight'] / $g['unpublished_total_credit'], 2) : null;
 
-            if (!empty($g['published'])) {
+            if (! empty($g['published'])) {
                 $publishedGroups[] = [
                     'session' => $g['session'],
                     'semester' => $g['semester'],
@@ -343,7 +357,7 @@ class GhostResultController extends Controller
                     'gpa' => $publishedGpa,
                 ];
             }
-            if (!empty($g['unpublished'])) {
+            if (! empty($g['unpublished'])) {
                 $unpublishedGroups[] = [
                     'session' => $g['session'],
                     'semester' => $g['semester'],

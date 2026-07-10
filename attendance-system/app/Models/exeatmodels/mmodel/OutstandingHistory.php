@@ -17,5 +17,4 @@ class OutstandingHistory extends Model
         'old_amount',
         'initiated_date',
     ];
-
 }

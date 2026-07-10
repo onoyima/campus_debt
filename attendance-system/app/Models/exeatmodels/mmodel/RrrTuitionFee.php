@@ -20,5 +20,4 @@ class RrrTuitionFee extends Model
         'trans_status',
         'order_id',
     ];
-
 }

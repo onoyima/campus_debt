@@ -28,5 +28,4 @@ class RrrOtherFee extends Model
     {
         return $this->belongsTo(OtherFeeHistory::class);
     }
-
 }

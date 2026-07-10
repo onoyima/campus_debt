@@ -8,6 +8,7 @@ use Illuminate\Console\Command;
 class SendWeeklyCompliance extends Command
 {
     protected $signature = 'attendance:weekly-compliance';
+
     protected $description = 'Queue weekly compliance notifications for all students';
 
     public function handle(): void

@@ -14,7 +14,7 @@ class CheckStudentAccess
     {
         $user = $request->user();
 
-        if (!$user) {
+        if (! $user) {
             return response()->json(['message' => 'Unauthenticated.'], 401);
         }
 
@@ -25,7 +25,7 @@ class CheckStudentAccess
 
         $student = Student::find($user->id);
 
-        if (!$student) {
+        if (! $student) {
             return response()->json(['message' => 'Access denied. Student only.'], 403);
         }
 

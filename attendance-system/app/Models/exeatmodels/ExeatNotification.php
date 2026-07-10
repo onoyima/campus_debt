@@ -79,29 +79,44 @@ class ExeatNotification extends Model
 
     // Notification types
     const TYPE_STAGE_CHANGE = 'stage_change';
+
     const TYPE_APPROVAL_REQUIRED = 'approval_required';
+
     const TYPE_REMINDER = 'reminder';
+
     const TYPE_EMERGENCY = 'emergency';
+
     const TYPE_REQUEST_SUBMITTED = 'request_submitted';
+
     const TYPE_REJECTION = 'rejection';
+
     const TYPE_STAFF_COMMENT = 'staff_comment';
 
     // Recipient types
     const RECIPIENT_STUDENT = 'student';
+
     const RECIPIENT_STAFF = 'staff';
+
     const RECIPIENT_ADMIN = 'admin';
+
     const RECIPIENT_PARENT = 'parent';
 
     // Priority levels
     const PRIORITY_LOW = 'low';
+
     const PRIORITY_MEDIUM = 'medium';
+
     const PRIORITY_HIGH = 'high';
+
     const PRIORITY_URGENT = 'urgent';
 
     // Delivery methods
     const DELIVERY_IN_APP = 'in_app';
+
     const DELIVERY_EMAIL = 'email';
+
     const DELIVERY_SMS = 'sms';
+
     const DELIVERY_WHATSAPP = 'whatsapp';
 
     /**

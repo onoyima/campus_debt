@@ -8,7 +8,9 @@ use Illuminate\Database\Eloquent\Model;
 class ParentConsent extends Model
 {
     use HasFactory;
+
     protected $table = 'parent_consents';
+
     protected $fillable = [
         'exeat_request_id',
         'student_contact_id',
@@ -21,13 +23,14 @@ class ParentConsent extends Model
         'action_type',
         'secretary_reason',
         'notification_status',
-        'status_message'
+        'status_message',
     ];
 
     public function exeatRequest()
     {
         return $this->belongsTo(ExeatRequest::class);
     }
+
     public function studentContact()
     {
         return $this->belongsTo(StudentContact::class);

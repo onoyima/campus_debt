@@ -35,5 +35,4 @@ class VunaTuitionFee extends Model
     {
         return $this->hasMany(TuitionFeePg::class);
     }
-
 }

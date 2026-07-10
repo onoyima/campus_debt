@@ -3,10 +3,10 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Models\Attendance\AttendanceExamEligibility;
 use App\Services\QrCodeService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 
 class ExamHallVerificationController extends Controller
@@ -37,9 +37,9 @@ class ExamHallVerificationController extends Controller
         $studentId = $request->student_id;
 
         // If searching by matric_no or name, look up the student in the portal DB
-        if (!$studentId) {
+        if (! $studentId) {
             try {
-                $query = \Illuminate\Support\Facades\DB::connection('mysql_remote')
+                $query = DB::connection('mysql_remote')
                     ->table('students')
                     ->leftJoin('student_academics', 'students.id', '=', 'student_academics.student_id');
 
@@ -49,18 +49,18 @@ class ExamHallVerificationController extends Controller
                     $query->where(function ($q) use ($request) {
                         $name = $request->full_name;
                         $q->where('students.fname', 'like', "%{$name}%")
-                          ->orWhere('students.lname', 'like', "%{$name}%")
-                          ->orWhereRaw("CONCAT(students.fname, ' ', students.lname) LIKE ?", ["%{$name}%"]);
+                            ->orWhere('students.lname', 'like', "%{$name}%")
+                            ->orWhereRaw("CONCAT(students.fname, ' ', students.lname) LIKE ?", ["%{$name}%"]);
                     });
                 }
 
                 $student = $query->select('students.id', 'student_academics.matric_no', 'students.fname', 'students.lname')->first();
-                if (!$student) {
+                if (! $student) {
                     return response()->json(['verified' => false, 'error' => 'Student not found in portal'], 404);
                 }
                 $studentId = $student->id;
             } catch (\Exception $e) {
-                return response()->json(['verified' => false, 'error' => 'Failed to search student: ' . $e->getMessage()], 500);
+                return response()->json(['verified' => false, 'error' => 'Failed to search student: '.$e->getMessage()], 500);
             }
         }
 
@@ -91,21 +91,21 @@ class ExamHallVerificationController extends Controller
             return response()->json(['errors' => $validator->errors()], 422);
         }
 
-        $decoded = json_decode(base64_decode($request->qr_payload), true) 
+        $decoded = json_decode(base64_decode($request->qr_payload), true)
             ?? json_decode($request->qr_payload, true);
 
-        if (!$decoded) {
+        if (! $decoded) {
             // Try URL-decoded
             $decoded = json_decode(urldecode($request->qr_payload), true);
         }
 
-        if (!$decoded) {
+        if (! $decoded) {
             return response()->json(['valid' => false, 'error' => 'Invalid QR payload'], 400);
         }
 
         $result = $this->qrCodeService->verifyQrCode(json_encode($decoded));
 
-        if (!$result['valid']) {
+        if (! $result['valid']) {
             return response()->json($result, 400);
         }
 
@@ -123,7 +123,7 @@ class ExamHallVerificationController extends Controller
         if ($result['type'] === 'student_identity') {
             // Lookup student from portal
             try {
-                $student = \Illuminate\Support\Facades\DB::connection('mysql_remote')
+                $student = DB::connection('mysql_remote')
                     ->table('students')
                     ->leftJoin('student_academics', 'students.id', '=', 'student_academics.student_id')
                     ->where('students.id', $result['student_id'])
@@ -135,7 +135,7 @@ class ExamHallVerificationController extends Controller
                 ]));
             } catch (\Exception $e) {
                 return response()->json(array_merge($result, [
-                    'error' => 'Student lookup failed: ' . $e->getMessage(),
+                    'error' => 'Student lookup failed: '.$e->getMessage(),
                 ]), 500);
             }
         }
@@ -193,7 +193,7 @@ class ExamHallVerificationController extends Controller
 
         // Also generate identity QR
         try {
-            $student = \Illuminate\Support\Facades\DB::connection('mysql_remote')
+            $student = DB::connection('mysql_remote')
                 ->table('students')
                 ->leftJoin('student_academics', 'students.id', '=', 'student_academics.student_id')
                 ->where('students.id', $studentId)
@@ -205,7 +205,7 @@ class ExamHallVerificationController extends Controller
                     (int) $studentId,
                     $student->matric_no
                 );
-                $result['student_name'] = $student->fname . ' ' . $student->lname;
+                $result['student_name'] = $student->fname.' '.$student->lname;
                 $result['matric_no'] = $student->matric_no;
             }
         } catch (\Exception $e) {

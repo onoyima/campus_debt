@@ -166,6 +166,9 @@ async function bootstrap() {
 
   const cron = require('node-cron');
 
+  // Keep track of devices that have already been pulled from at startup
+  const pulledDevices = new Set();
+
   cron.schedule(config.pollInterval, async () => {
     try {
       const devices = await deviceManager.getRegisteredDevices();
@@ -176,6 +179,40 @@ async function bootstrap() {
       logger.error('Device polling cycle failed', { error: err.message });
     }
   });
+
+  // Pull missed attendance from all devices at startup (covers server/portal outages)
+  setTimeout(async () => {
+    try {
+      const devices = await deviceManager.getRegisteredDevices();
+      for (const device of devices) {
+        if (pulledDevices.has(device.id || device.device_id)) continue;
+        try {
+          const conn = await deviceManager.connectAndListen(device);
+          if (conn && conn.connected) {
+            const records = await conn.pullAttendance();
+            if (records && records.length > 0) {
+              logger.info(`Startup pull: ${records.length} missed records from ${device.device_id}`);
+              for (const rec of records) {
+                syncService.enqueue('attendance', {
+                  terminal_id: device.id,
+                  user_id: rec.user_id,
+                  timestamp: rec.timestamp,
+                  method: rec.method,
+                  status: rec.status,
+                  received_at: new Date().toISOString(),
+                });
+              }
+            }
+            pulledDevices.add(device.id || device.device_id);
+          }
+        } catch (pullErr) {
+          logger.warn(`Startup pull failed for ${device.device_id}`, { error: pullErr.message });
+        }
+      }
+    } catch (err) {
+      logger.error('Startup pull cycle failed', { error: err.message });
+    }
+  }, 5000); // 5 seconds after service starts
 
   cron.schedule(config.syncInterval, async () => {
     try {

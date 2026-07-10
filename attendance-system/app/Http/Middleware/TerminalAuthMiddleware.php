@@ -15,7 +15,7 @@ class TerminalAuthMiddleware
             ?? $request->header('X-API-Key')
             ?? $request->input('api_key');
 
-        if (!$token) {
+        if (! $token) {
             return response()->json(['message' => 'Missing terminal API key'], 401);
         }
 
@@ -40,7 +40,7 @@ class TerminalAuthMiddleware
             ->where('is_active', true)
             ->first();
 
-        if (!$terminal) {
+        if (! $terminal) {
             return response()->json(['message' => 'Invalid or inactive terminal'], 401);
         }
 

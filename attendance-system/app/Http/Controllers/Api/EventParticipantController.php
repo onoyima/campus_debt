@@ -29,6 +29,7 @@ class EventParticipantController extends Controller
         }
 
         $records = $query->orderBy('created_at', 'desc')->paginate($perPage);
+
         return response()->json([
             'data' => $records->items(),
             'meta' => ['current_page' => $records->currentPage(), 'last_page' => $records->lastPage(), 'per_page' => $records->perPage(), 'total' => $records->total()],
@@ -42,30 +43,48 @@ class EventParticipantController extends Controller
             'participant_type' => 'required|string|max:20',
             'participant_id' => 'required|integer',
         ]);
-        if ($validator->fails()) return response()->json(['errors' => $validator->errors()], 422);
-        try { $record = AttendanceEventParticipant::create($validator->validated()); return response()->json(['data' => $record, 'message' => 'Participant added successfully.'], 201); }
-        catch (\Exception $e) { return response()->json(['message' => 'Failed to add participant.', 'error' => $e->getMessage()], 500); }
+        if ($validator->fails()) {
+            return response()->json(['errors' => $validator->errors()], 422);
+        }
+        try {
+            $record = AttendanceEventParticipant::create($validator->validated());
+
+            return response()->json(['data' => $record, 'message' => 'Participant added successfully.'], 201);
+        } catch (\Exception $e) {
+            return response()->json(['message' => 'Failed to add participant.', 'error' => $e->getMessage()], 500);
+        }
     }
 
     public function show(Request $request, $id): JsonResponse
     {
         $record = AttendanceEventParticipant::with($this->parseIncludes($request, []))->find($id);
-        if (!$record) return response()->json(['message' => 'Event participant not found.'], 404);
+        if (! $record) {
+            return response()->json(['message' => 'Event participant not found.'], 404);
+        }
+
         return response()->json(['data' => $record]);
     }
 
     public function remove(Request $request, $id): JsonResponse
     {
         $record = AttendanceEventParticipant::find($id);
-        if (!$record) return response()->json(['message' => 'Event participant not found.'], 404);
-        try { $record->delete(); return response()->json(['message' => 'Participant removed successfully.']); }
-        catch (\Exception $e) { return response()->json(['message' => 'Failed to remove participant.', 'error' => $e->getMessage()], 500); }
+        if (! $record) {
+            return response()->json(['message' => 'Event participant not found.'], 404);
+        }
+        try {
+            $record->delete();
+
+            return response()->json(['message' => 'Participant removed successfully.']);
+        } catch (\Exception $e) {
+            return response()->json(['message' => 'Failed to remove participant.', 'error' => $e->getMessage()], 500);
+        }
     }
 
     public function restore(int $id): JsonResponse
     {
         $model = AttendanceEventParticipant::withTrashed()->findOrFail($id);
         $model->restore();
+
         return response()->json(['message' => 'Restored successfully.']);
     }
 
@@ -73,12 +92,16 @@ class EventParticipantController extends Controller
     {
         $model = AttendanceEventParticipant::withTrashed()->findOrFail($id);
         $model->forceDelete();
+
         return response()->json(['message' => 'Permanently deleted.']);
     }
 
     private function parseIncludes(Request $request, array $allowed): array
     {
-        if (!$request->filled('include')) return [];
+        if (! $request->filled('include')) {
+            return [];
+        }
+
         return array_intersect(explode(',', $request->include), $allowed);
     }
 }

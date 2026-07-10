@@ -8,9 +8,11 @@ use Illuminate\Database\Eloquent\Model;
 class Attachment extends Model
 {
     use HasFactory;
+
     protected $table = 'attachments';
+
     protected $fillable = [
-        'exeat_request_id', 'file_url', 'uploaded_by', 'uploaded_at'
+        'exeat_request_id', 'file_url', 'uploaded_by', 'uploaded_at',
     ];
 
     public function exeatRequest()

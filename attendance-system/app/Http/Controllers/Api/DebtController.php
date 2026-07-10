@@ -23,6 +23,14 @@ class DebtController extends Controller
             $query->where('student_id', $request->student_id);
         }
 
+        if ($request->filled('staff_id')) {
+            $query->where('staff_id', $request->staff_id);
+        }
+
+        if ($request->filled('participant_type')) {
+            $query->where('participant_type', $request->participant_type);
+        }
+
         if ($request->filled('payment_status')) {
             $query->where('payment_status', $request->payment_status);
         }
@@ -95,7 +103,7 @@ class DebtController extends Controller
         $includes = $this->parseIncludes($request, ['debtPayments']);
         $debt = AttendanceDebt::with($includes)->find($id);
 
-        if (!$debt) {
+        if (! $debt) {
             return response()->json(['message' => 'Debt not found.'], 404);
         }
 
@@ -106,7 +114,7 @@ class DebtController extends Controller
     {
         $debt = AttendanceDebt::find($id);
 
-        if (!$debt) {
+        if (! $debt) {
             return response()->json(['message' => 'Debt not found.'], 404);
         }
 
@@ -141,12 +149,12 @@ class DebtController extends Controller
     {
         $debt = AttendanceDebt::find($id);
 
-        if (!$debt) {
+        if (! $debt) {
             return response()->json(['message' => 'Debt not found.'], 404);
         }
 
         try {
-            $debt->update(['blocks_eligibility' => !$debt->blocks_eligibility]);
+            $debt->update(['blocks_eligibility' => ! $debt->blocks_eligibility]);
 
             return response()->json([
                 'data' => $debt->fresh(),
@@ -230,20 +238,24 @@ class DebtController extends Controller
                 $dueDate = trim($row['due_date'] ?? '');
                 $blocksEligibility = filter_var(trim($row['blocks_eligibility'] ?? '0'), FILTER_VALIDATE_BOOLEAN);
 
-                if (!$studentId || !is_numeric($studentId)) {
-                    $failed[] = "Row " . ($i + 2) . ": invalid or missing student_id";
+                if (! $studentId || ! is_numeric($studentId)) {
+                    $failed[] = 'Row '.($i + 2).': invalid or missing student_id';
+
                     continue;
                 }
-                if (!$amount || !is_numeric($amount) || $amount < 0) {
-                    $failed[] = "Row " . ($i + 2) . " (student {$studentId}): invalid amount";
+                if (! $amount || ! is_numeric($amount) || $amount < 0) {
+                    $failed[] = 'Row '.($i + 2)." (student {$studentId}): invalid amount";
+
                     continue;
                 }
-                if (!$reason) {
-                    $failed[] = "Row " . ($i + 2) . " (student {$studentId}): missing reason";
+                if (! $reason) {
+                    $failed[] = 'Row '.($i + 2)." (student {$studentId}): missing reason";
+
                     continue;
                 }
-                if (!$dueDate) {
-                    $failed[] = "Row " . ($i + 2) . " (student {$studentId}): missing due_date";
+                if (! $dueDate) {
+                    $failed[] = 'Row '.($i + 2)." (student {$studentId}): missing due_date";
+
                     continue;
                 }
 
@@ -259,12 +271,12 @@ class DebtController extends Controller
                     ]);
                     $created++;
                 } catch (\Exception $e) {
-                    $failed[] = "Row " . ($i + 2) . " (student {$studentId}): " . $e->getMessage();
+                    $failed[] = 'Row '.($i + 2)." (student {$studentId}): ".$e->getMessage();
                 }
             }
 
             return response()->json([
-                'message' => "{$created} debt(s) created. " . count($failed) . " row(s) failed.",
+                'message' => "{$created} debt(s) created. ".count($failed).' row(s) failed.',
                 'created' => $created,
                 'failed' => $failed,
             ]);
@@ -277,6 +289,7 @@ class DebtController extends Controller
     {
         $model = AttendanceDebt::withTrashed()->findOrFail($id);
         $model->restore();
+
         return response()->json(['message' => 'Restored successfully.']);
     }
 
@@ -284,12 +297,13 @@ class DebtController extends Controller
     {
         $model = AttendanceDebt::withTrashed()->findOrFail($id);
         $model->forceDelete();
+
         return response()->json(['message' => 'Permanently deleted.']);
     }
 
     private function parseIncludes(Request $request, array $allowed): array
     {
-        if (!$request->filled('include')) {
+        if (! $request->filled('include')) {
             return [];
         }
 

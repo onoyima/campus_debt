@@ -4,7 +4,6 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Attendance\AttendanceDeviceCommand;
-use App\Models\Attendance\AttendanceTerminal;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
@@ -62,9 +61,10 @@ class DeviceCommandController extends Controller
     public function show($id): JsonResponse
     {
         $cmd = AttendanceDeviceCommand::find($id);
-        if (!$cmd) {
+        if (! $cmd) {
             return response()->json(['message' => 'Command not found.'], 404);
         }
+
         return response()->json(['data' => $cmd]);
     }
 
@@ -75,7 +75,7 @@ class DeviceCommandController extends Controller
     public function pending(Request $request): JsonResponse
     {
         $terminal = $request->attributes->get('authenticated_terminal');
-        if (!$terminal) {
+        if (! $terminal) {
             return response()->json(['message' => 'Unauthenticated terminal.'], 401);
         }
 
@@ -97,7 +97,7 @@ class DeviceCommandController extends Controller
         $terminal = $request->attributes->get('authenticated_terminal');
         $cmd = AttendanceDeviceCommand::find($id);
 
-        if (!$cmd) {
+        if (! $cmd) {
             return response()->json(['message' => 'Command not found.'], 404);
         }
 

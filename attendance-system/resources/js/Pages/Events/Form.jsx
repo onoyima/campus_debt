@@ -10,8 +10,9 @@ export default function EventsForm() {
   const id = isEdit ? window.location.pathname.split('/')[2] : null
 
   const [form, setForm] = useState({
-    title: '', event_category_id: '', venue_id: '', organizer_id: '',
-    start_date: '', end_date: '', attendance_open_time: '', attendance_close_time: '', is_mandatory: false,
+    title: '', event_category_id: '', venue_id: '', organizer_id: '', organizing_unit_type: '',
+    start_date: '', end_date: '', attendance_open_time: '', attendance_close_time: '',
+    clock_out_open_time: '', clock_out_close_time: '', grace_period_minutes: '', is_mandatory: false,
   })
   const [venues, setVenues] = useState([])
   const [categories, setCategories] = useState([])
@@ -33,19 +34,23 @@ export default function EventsForm() {
     api.get('/terminals').then((res) => setTerminals(res.data.data || [])).catch(() => {})
 
     if (isEdit && id) {
-      api.get(`/institutional-events/${id}`)
+      api.get(`/institutional-events/${id}?include=targetGroups,assignedTerminals`)
         .then((res) => {
           const e = res.data.data || res.data
+          const fmtDate = (d) => d ? d.substring(0, 10) : ''
+          const fmtTime = (t) => t ? t.substring(0, 5) : ''
           setForm({
             title: e.title ?? '',
             event_category_id: e.event_category_id ?? '',
             venue_id: e.venue_id ?? '',
-            organizer_id: e.organizer_id ?? '',
-            start_date: e.start_date ?? '',
-            end_date: e.end_date ?? '',
-            attendance_open_time: e.attendance_open_time ?? '',
-            attendance_close_time: e.attendance_close_time ?? '',
-            is_mandatory: e.is_mandatory ?? false,
+            organizer_id: e.organizer_id ?? '', organizing_unit_type: e.organizing_unit_type ?? '',
+            start_date: fmtDate(e.start_date),
+            end_date: fmtDate(e.end_date),
+            attendance_open_time: fmtTime(e.attendance_open_time),
+            attendance_close_time: fmtTime(e.attendance_close_time),
+            clock_out_open_time: fmtTime(e.clock_out_open_time),
+            clock_out_close_time: fmtTime(e.clock_out_close_time),
+            grace_period_minutes: e.grace_period_minutes ?? '', is_mandatory: e.is_mandatory ?? false,
           })
           if (e.target_groups && e.target_groups.length > 0) {
             setSelectedAudience(
@@ -99,6 +104,10 @@ export default function EventsForm() {
     try {
       const payload = {
         ...form,
+        organizer_id: form.organizer_id || null,
+        grace_period_minutes: form.grace_period_minutes ? parseInt(form.grace_period_minutes, 10) : null,
+        clock_out_open_time: form.clock_out_open_time || null,
+        clock_out_close_time: form.clock_out_close_time || null,
         target_audience: selectedAudience.length > 0 ? selectedAudience : [],
         terminal_ids: selectedTerminals.length > 0 ? selectedTerminals : [],
       }
@@ -161,11 +170,28 @@ export default function EventsForm() {
               </div>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <FormInput label="Organizer ID" name="organizer_id" value={form.organizer_id} onChange={handleChange} required />
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Organizing Unit</label>
+                <select name="organizing_unit_type" value={form.organizing_unit_type} onChange={handleChange} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-veritas-500 focus:border-veritas-500">
+                  <option value="">Select Organizing Unit</option>
+                  <option value="university_management">University Management</option>
+                  <option value="vice_chancellor">Vice Chancellor</option>
+                  <option value="registrar">Registrar</option>
+                  <option value="director_of_research">Director of Research</option>
+                  <option value="dean">Dean</option>
+                  <option value="hod">Head of Department</option>
+                  <option value="director">Director</option>
+                  <option value="secretary">Secretary</option>
+                  <option value="convener">Convener</option>
+                </select>
+              </div>
               <FormInput label="Start Date" name="start_date" type="date" value={form.start_date} onChange={handleChange} required />
               <FormInput label="End Date" name="end_date" type="date" value={form.end_date} onChange={handleChange} required />
               <FormInput label="Attendance Open Time" name="attendance_open_time" type="time" value={form.attendance_open_time} onChange={handleChange} required />
               <FormInput label="Attendance Close Time" name="attendance_close_time" type="time" value={form.attendance_close_time} onChange={handleChange} required />
+              <FormInput label="Clock-out Open Time" name="clock_out_open_time" type="time" value={form.clock_out_open_time} onChange={handleChange} />
+              <FormInput label="Event Closure Time" name="clock_out_close_time" type="time" value={form.clock_out_close_time} onChange={handleChange} />
+              <FormInput label="Grace Period (minutes)" name="grace_period_minutes" type="number" min="0" value={form.grace_period_minutes} onChange={handleChange} />
             </div>
             <div className="mb-4 mt-4">
               <label className="flex items-center">

@@ -15,6 +15,6 @@ class TuitionFeeTopUp extends Model
         'tuition_fee_id',
         'description',
         'amount',
-        'initiated_date'
+        'initiated_date',
     ];
 }

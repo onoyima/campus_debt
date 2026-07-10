@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Model;
 class Course extends Model
 {
     // status: 0 = Unpublished Course; 1 = Publish course
-    //is_assigned: 0 = Not assigned;  1 = Assigned; 2 = Cancelled
+    // is_assigned: 0 = Not assigned;  1 = Assigned; 2 = Cancelled
 
     use HasFactory;
 
@@ -91,5 +91,4 @@ class Course extends Model
     {
         return $this->hasOne(CourseReg::class);
     }
-
 }

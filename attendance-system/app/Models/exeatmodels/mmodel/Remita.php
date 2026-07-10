@@ -9,7 +9,6 @@ class Remita extends Model
 {
     use HasFactory;
 
-
     protected $fillable = [
         'fname',
     ];

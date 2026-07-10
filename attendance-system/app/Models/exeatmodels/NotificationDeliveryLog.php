@@ -12,15 +12,22 @@ class NotificationDeliveryLog extends Model
 
     // Status constants
     const STATUS_PENDING = 'pending';
+
     const STATUS_SENT = 'sent';
+
     const STATUS_DELIVERED = 'delivered';
+
     const STATUS_FAILED = 'failed';
+
     const STATUS_READ = 'read';
 
     // Delivery method constants
     const METHOD_EMAIL = 'email';
+
     const METHOD_SMS = 'sms';
+
     const METHOD_IN_APP = 'in_app';
+
     const METHOD_PUSH = 'push';
 
     protected $fillable = [
@@ -41,7 +48,7 @@ class NotificationDeliveryLog extends Model
         'failed_at' => 'datetime',
         'metadata' => 'array',
         'retry_count' => 'integer',
-        'max_retries' => 'integer'
+        'max_retries' => 'integer',
     ];
 
     /**
@@ -83,7 +90,7 @@ class NotificationDeliveryLog extends Model
     {
         $this->update([
             'status' => 'sent',
-            'sent_at' => now()
+            'sent_at' => now(),
         ]);
     }
 
@@ -94,19 +101,19 @@ class NotificationDeliveryLog extends Model
     {
         $this->update([
             'status' => 'delivered',
-            'delivered_at' => now()
+            'delivered_at' => now(),
         ]);
     }
 
     /**
      * Mark the delivery as failed.
      */
-    public function markAsFailed(string $reason = null): void
+    public function markAsFailed(?string $reason = null): void
     {
         $this->update([
             'status' => 'failed',
             'failed_at' => now(),
-            'failure_reason' => $reason
+            'failure_reason' => $reason,
         ]);
     }
 
@@ -116,7 +123,7 @@ class NotificationDeliveryLog extends Model
     public function markAsRead(): void
     {
         $this->update([
-            'read_at' => now()
+            'read_at' => now(),
         ]);
     }
 

@@ -87,7 +87,7 @@ class EventAttendanceController extends Controller
         $includes = $this->parseIncludes($request, ['status', 'institutionalEvent', 'venue']);
         $attendance = AttendanceEventAttendance::with($includes)->find($id);
 
-        if (!$attendance) {
+        if (! $attendance) {
             return response()->json(['message' => 'Event attendance record not found.'], 404);
         }
 
@@ -98,6 +98,7 @@ class EventAttendanceController extends Controller
     {
         $model = AttendanceEventAttendance::withTrashed()->findOrFail($id);
         $model->restore();
+
         return response()->json(['message' => 'Restored successfully.']);
     }
 
@@ -105,12 +106,13 @@ class EventAttendanceController extends Controller
     {
         $model = AttendanceEventAttendance::withTrashed()->findOrFail($id);
         $model->forceDelete();
+
         return response()->json(['message' => 'Permanently deleted.']);
     }
 
     private function parseIncludes(Request $request, array $allowed): array
     {
-        if (!$request->filled('include')) {
+        if (! $request->filled('include')) {
             return [];
         }
 

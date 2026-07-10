@@ -18,8 +18,12 @@ class AuthController extends Controller
 {
     private function passportUrl(?string $value): ?string
     {
-        if (!$value) return null;
-        if (str_starts_with($value, 'http')) return $value;
+        if (! $value) {
+            return null;
+        }
+        if (str_starts_with($value, 'http')) {
+            return $value;
+        }
         $mime = match (true) {
             str_starts_with($value, '/9j/') => 'image/jpeg',
             str_starts_with($value, 'iVBOR') => 'image/png',
@@ -27,6 +31,7 @@ class AuthController extends Controller
             str_starts_with($value, 'UklGR') => 'image/webp',
             default => 'image/jpeg',
         };
+
         return "data:$mime;base64,$value";
     }
 
@@ -42,8 +47,8 @@ class AuthController extends Controller
         // Check student login
         $student = Student::where(function ($q) use ($credential) {
             $q->where('email', $credential);
-            if (!str_contains($credential, '@')) {
-                $q->orWhere('email', 'like', $credential . '@%');
+            if (! str_contains($credential, '@')) {
+                $q->orWhere('email', 'like', $credential.'@%');
             }
         })->first(['id', 'fname', 'mname', 'lname', 'email', 'password', 'passport', 'phone', 'status']);
 
@@ -55,6 +60,7 @@ class AuthController extends Controller
                 $student->tokens()->delete();
                 $token = $student->createToken('attendance-api', ['student'])->plainTextToken;
                 $academic = StudentAcademic::where('student_id', $student->id)->latest()->first();
+
                 return response()->json([
                     'token' => $token,
                     'user' => [
@@ -89,6 +95,7 @@ class AuthController extends Controller
                     ->filter()
                     ->values()
                     ->toArray();
+
                 return response()->json([
                     'token' => $token,
                     'user' => [
@@ -115,7 +122,7 @@ class AuthController extends Controller
         $user = $request->user();
         $remote = DB::connection('mysql_remote');
 
-        $cacheKey = 'profile_' . ($user instanceof Student ? 'student' : 'staff') . '_' . $user->id;
+        $cacheKey = 'profile_'.($user instanceof Student ? 'student' : 'staff').'_'.$user->id;
 
         $base = Cache::remember($cacheKey, 300, function () use ($user, $remote) {
             $base = [

@@ -3,9 +3,10 @@
 namespace App\Services;
 
 use App\Models\Attendance\AttendanceEventAttendance;
+use App\Models\Attendance\AttendanceEventParticipant;
+use App\Models\Attendance\AttendanceEventWindow;
 use App\Models\Attendance\AttendanceInstitutionalEvent;
 use App\Models\Attendance\AttendanceStatusType;
-use App\Models\Attendance\AttendanceEventTargetGroup;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -13,27 +14,50 @@ use Illuminate\Support\Facades\Log;
 
 class AttendanceEventService
 {
-    public function getWindows(AttendanceInstitutionalEvent $event): array
+    public function getWindows(AttendanceInstitutionalEvent $event, ?Carbon $at = null): array
     {
-        $start = Carbon::parse($event->start_date);
-        $end = Carbon::parse($event->end_date);
+        // Try to find a per-day window first
+        $at = $at ?? now();
+        $windowDate = $at->format('Y-m-d');
+
+        $window = AttendanceEventWindow::where('institutional_event_id', $event->id)
+            ->where('window_date', $windowDate)
+            ->where('is_active', true)
+            ->first();
+
+        if ($window) {
+            return $window->buildWindows();
+        }
+
+        // Fallback to event-level times (for backward compatibility)
+        $dateStr = $event->start_date instanceof Carbon
+            ? $event->start_date->format('Y-m-d')
+            : Carbon::parse($event->start_date)->format('Y-m-d');
+
         $open = $event->attendance_open_time
-            ? Carbon::parse($event->start_date->format('Y-m-d') . ' ' . $event->attendance_open_time)
-            : $start->copy()->subHour();
+            ? Carbon::parse($dateStr.' '.$event->attendance_open_time)
+            : Carbon::parse($dateStr.' 00:00:00');
 
         $close = $event->attendance_close_time
-            ? Carbon::parse($event->start_date->format('Y-m-d') . ' ' . $event->attendance_close_time)
-            : $end->copy()->addHour();
+            ? Carbon::parse($dateStr.' '.$event->attendance_close_time)
+            : $open->copy()->addHours(2);
+
+        $graceMinutes = max(0, (int) ($event->grace_period_minutes ?? 0));
+        $checkInClose = $open->copy()->addMinutes($graceMinutes);
 
         return [
-            'event_start' => $start,
-            'event_end' => $end,
+            'event_start' => $open,
+            'event_end' => $close,
             'check_in_open' => $open,
-            'check_in_close' => $start->copy()->addMinutes(30),
-            'late_check_in_open' => $start->copy()->addMinutes(31),
+            'check_in_close' => $checkInClose,
+            'late_check_in_open' => $checkInClose->copy()->addMinute(),
             'late_check_in_close' => $close,
-            'check_out_open' => $end,
-            'check_out_close' => $end->copy()->addHour(),
+            'check_out_open' => $event->clock_out_open_time
+                ? Carbon::parse($dateStr.' '.$event->clock_out_open_time)
+                : $close,
+            'check_out_close' => $event->clock_out_close_time
+                ? Carbon::parse($dateStr.' '.$event->clock_out_close_time)
+                : $close->copy()->addHour(),
         ];
     }
 
@@ -48,37 +72,43 @@ class AttendanceEventService
         if ($scanTime->between($windows['check_out_open'], $windows['check_out_close'])) {
             return 'out';
         }
+
         return 'outside';
     }
 
     public function determineStatus(AttendanceInstitutionalEvent $event, ?Collection $scans): array
     {
         $windows = $this->getWindows($event);
-        $now = now();
 
         $presentStatus = AttendanceStatusType::where('code', 'present')->value('id');
         $lateStatus = AttendanceStatusType::where('code', 'late')->value('id');
-        $absentStatus = AttendanceStatusType::where('code', 'absent')->value('id');
 
         $checkInScan = null;
         $checkOutScan = null;
 
         if ($scans && $scans->isNotEmpty()) {
             foreach ($scans as $scan) {
+                if ((int) $scan->status_id === AttendanceStatusType::where('code', 'absent')->value('id')) {
+                    continue;
+                }
                 $scanTime = Carbon::parse($scan->timestamp);
                 $classification = $this->classifyScan($scanTime, $windows);
 
-                if (in_array($classification, ['in', 'late_in']) && !$checkInScan) {
+                if (in_array($classification, ['in', 'late_in']) && ! $checkInScan) {
                     $checkInScan = $scan;
-                } elseif ($classification === 'out' && !$checkOutScan) {
+                } elseif ($classification === 'out' && ! $checkOutScan) {
                     $checkOutScan = $scan;
+                } elseif ($classification === 'outside' && ! $checkInScan && $event->status !== 'completed') {
+                    $checkInScan = $scan;
                 }
             }
         }
 
+        // Has a check-in scan — determine present or late based on timing
         if ($checkInScan) {
             $classification = $this->classifyScan(Carbon::parse($checkInScan->timestamp), $windows);
             $statusId = $classification === 'in' ? $presentStatus : $lateStatus;
+
             return [
                 'status' => $classification === 'in' ? 'present' : 'late',
                 'status_id' => $statusId,
@@ -87,21 +117,17 @@ class AttendanceEventService
             ];
         }
 
-        // Only mark absent if the event time window has fully closed
-        $eventEnd = Carbon::parse($event->end_date);
-        $closeTime = $event->attendance_close_time
-            ? Carbon::parse($event->start_date instanceof Carbon ? $event->start_date->format('Y-m-d') : $event->start_date . ' ' . $event->attendance_close_time)
-            : $eventEnd->copy()->addHour();
-
-        if ($now->greaterThan($closeTime)) {
+        // No check-in, but has a clock-out scan — present but late
+        if ($checkOutScan) {
             return [
-                'status' => 'absent',
-                'status_id' => $absentStatus,
+                'status' => 'late',
+                'status_id' => $lateStatus,
                 'check_in' => null,
-                'check_out' => null,
+                'check_out' => $checkOutScan,
             ];
         }
 
+        // No real scans at all — always pending until the event is formally completed
         return [
             'status' => 'pending',
             'status_id' => null,
@@ -127,7 +153,7 @@ class AttendanceEventService
         $windows = $this->getWindows($event);
         $now = now();
 
-        // 1. Build expected participant list from target groups
+        // 1. Build expected participant list from target groups + enrolled participants
         $allExpected = collect();
         foreach ($event->targetGroups as $group) {
             $ids = $enrollmentService->resolveTargetGroup($group);
@@ -139,16 +165,25 @@ class AttendanceEventService
                 ]);
             }
         }
-        $allExpected = $allExpected->unique(fn($i) => $i['participant_id'] . '_' . $i['participant_type']);
+        // Also include explicitly enrolled participants (in case target groups were deleted)
+        $enrolled = AttendanceEventParticipant::where('institutional_event_id', $event->id)
+            ->get(['participant_id', 'participant_type']);
+        foreach ($enrolled as $p) {
+            $allExpected->push([
+                'participant_id' => (int) $p->participant_id,
+                'participant_type' => $p->participant_type,
+            ]);
+        }
+        $allExpected = $allExpected->unique(fn ($i) => $i['participant_id'].'_'.$i['participant_type']);
 
         // 2. Fetch all scans for this event
         $allScans = AttendanceEventAttendance::where('institutional_event_id', $event->id)
             ->orderBy('timestamp')
             ->get()
-            ->groupBy(fn($r) => $r->participant_id . '_' . $r->participant_type);
+            ->groupBy(fn ($r) => $r->participant_id.'_'.$r->participant_type);
 
         // 3. Map expected participants to their status
-        $expectedMap = $allExpected->keyBy(fn($i) => $i['participant_id'] . '_' . $i['participant_type']);
+        $expectedMap = $allExpected->keyBy(fn ($i) => $i['participant_id'].'_'.$i['participant_type']);
 
         $present = 0;
         $late = 0;
@@ -197,20 +232,30 @@ class AttendanceEventService
             }
         }
 
-        // 5. Also include expected participants with no scans (absent/pending)
+        // 5. Expected participants with no scans — pending if no absent record yet, absent if closeEvent already ran
+        $absentStatusId = AttendanceStatusType::where('code', 'absent')->value('id');
+
         foreach ($allExpected as $expected) {
-            $key = $expected['participant_id'] . '_' . $expected['participant_type'];
-            if (!$allScans->has($key)) {
-                $status = $this->determineStatus($event, collect());
-                match ($status['status']) {
-                    'absent' => $absent++,
-                    'pending' => $pending++,
-                    default => null,
-                };
+            $key = $expected['participant_id'].'_'.$expected['participant_type'];
+            if (! $allScans->has($key)) {
+                $alreadyAbsent = AttendanceEventAttendance::where('institutional_event_id', $event->id)
+                    ->where('participant_id', $expected['participant_id'])
+                    ->where('participant_type', $expected['participant_type'])
+                    ->where('status_id', $absentStatusId)
+                    ->exists();
+
+                if ($alreadyAbsent) {
+                    $absent++;
+                    $status = 'absent';
+                } else {
+                    $pending++;
+                    $status = 'pending';
+                }
+
                 $breakdown[] = [
                     'participant_id' => $expected['participant_id'],
                     'participant_type' => $expected['participant_type'],
-                    'status' => $status['status'],
+                    'status' => $status,
                     'check_in_time' => null,
                     'check_out_time' => null,
                     'is_visitor' => false,

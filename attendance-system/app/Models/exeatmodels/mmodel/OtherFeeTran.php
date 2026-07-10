@@ -56,5 +56,4 @@ class OtherFeeTran extends Model
     {
         return $this->belongsTo(OtherFeeHistory::class);
     }
-
 }

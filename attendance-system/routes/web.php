@@ -32,6 +32,8 @@ Route::get('/events', fn() => Inertia::render('Events/Index'));
 Route::get('/events/create', fn() => Inertia::render('Events/Form'));
 Route::get('/events/{id}/edit', fn() => Inertia::render('Events/Form'));
 Route::get('/events/{id}/attendance-report', fn() => Inertia::render('Events/AttendanceReport'));
+Route::get('/events/{id}/live', fn() => Inertia::render('Events/LiveFeed'));
+Route::get('/events/{id}', fn() => Inertia::render('Events/Show'));
 
 Route::get('/event-categories', fn() => Inertia::render('EventCategories/Index'));
 
@@ -99,3 +101,4 @@ Route::get('/ghost/results', fn() => Inertia::render('GhostResults/Index'));
 
 Route::get('/device-monitor', fn() => Inertia::render('DeviceMonitor/Index'));
 Route::get('/live-feed', fn() => Inertia::render('LiveFeed/Index'));
+Route::get('/my-events', fn() => Inertia::render('MyEvents/Index'));

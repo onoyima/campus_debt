@@ -3,17 +3,21 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Models\Attendance\AttendanceInstitutionalEvent;
 use App\Models\Attendance\AttendanceEventAttendance;
+use App\Models\Attendance\AttendanceEventParticipant;
+use App\Models\Attendance\AttendanceEventPenaltyAssignment;
 use App\Models\Attendance\AttendanceEventTargetGroup;
-use App\Models\Attendance\AttendanceStatusType;
+use App\Models\Attendance\AttendanceEventWindow;
+use App\Models\Attendance\AttendanceInstitutionalEvent;
 use App\Models\Attendance\AttendanceTerminal;
 use App\Services\AttendanceEventService;
+use App\Services\EventLifecycleService;
 use App\Services\EventParticipantEnrollmentService;
-use Illuminate\Support\Facades\Response;
+use Carbon\Carbon;
+use Dompdf\Dompdf;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 
 class InstitutionalEventController extends Controller
@@ -23,8 +27,8 @@ class InstitutionalEventController extends Controller
         $perPage = $request->integer('per_page', 15);
         $query = AttendanceInstitutionalEvent::query();
 
-        $includes = $this->parseIncludes($request, ['eventCategory', 'venue', 'participants', 'targetGroups']);
-        $query->with($includes);
+        $includes = $this->parseIncludes($request, ['eventCategory', 'venue', 'participants', 'targetGroups', 'assignedTerminals']);
+        $query->with(array_merge($includes, ['windows', 'penaltyAssignments']));
 
         if ($request->filled('is_active')) {
             $query->where('is_active', $request->boolean('is_active'));
@@ -110,45 +114,41 @@ class InstitutionalEventController extends Controller
         $venueId = $terminal?->venue_id;
         $now = now();
         $today = $now->format('Y-m-d');
+        $currentTime = $now->format('H:i:s');
 
         $query = AttendanceInstitutionalEvent::where('is_active', true)
             ->where('status', 'active')
-            // Must be active on today's date (start_date <= today <= end_date)
             ->where('start_date', '<=', $today)
             ->where(function ($q) use ($today) {
                 $q->whereNull('end_date')
-                   ->orWhere('end_date', '>=', $today);
+                    ->orWhere('end_date', '>=', $today);
             })
-            // Must have a clock window open right now
-            ->where(function ($q) use ($now) {
-                $q->where(function ($q2) use ($now) {
-                    $q2->where('attendance_open_time', '<=', $now->format('H:i:s'))
-                       ->where('attendance_close_time', '>=', $now->format('H:i:s'));
-                })->orWhere(function ($q2) use ($now) {
-                    $q2->whereNotNull('clock_out_open_time')
-                       ->whereNotNull('clock_out_close_time')
-                       ->where('clock_out_open_time', '<=', $now->format('H:i:s'))
-                       ->where('clock_out_close_time', '>=', $now->format('H:i:s'));
-                });
+            ->whereHas('windows', function ($q2) use ($today, $currentTime) {
+                $q2->where('window_date', $today)
+                    ->where('is_active', true)
+                    ->where('attendance_open_time', '<=', $currentTime)
+                    ->where('attendance_close_time', '>=', $currentTime);
             });
 
-        if ($venueId && !($terminal?->allow_any_venue)) {
+        if ($venueId && ! ($terminal?->allow_any_venue)) {
             $query->where(function ($q) use ($venueId, $terminalId) {
                 $q->where('venue_id', $venueId)
-                  ->orWhereHas('assignedTerminals', function ($q2) use ($terminalId) {
-                      $q2->where('attendance_terminals.id', $terminalId);
-                  });
+                    ->orWhereHas('assignedTerminals', function ($q2) use ($terminalId) {
+                        $q2->where('attendance_terminals.id', $terminalId);
+                    });
             });
         } elseif ($terminalId && $terminal?->allow_any_venue) {
             $query->where(function ($q) use ($terminalId) {
                 $q->whereNull('venue_id')
-                  ->orWhereHas('assignedTerminals', function ($q2) use ($terminalId) {
-                      $q2->where('attendance_terminals.id', $terminalId);
-                  });
+                    ->orWhereHas('assignedTerminals', function ($q2) use ($terminalId) {
+                        $q2->where('attendance_terminals.id', $terminalId);
+                    });
             });
         }
 
-        $events = $query->with(['participants', 'venue', 'assignedTerminals'])->orderBy('attendance_open_time')->get();
+        $events = $query->with(['participants', 'venue', 'assignedTerminals', 'windows' => function ($q) use ($today) {
+            $q->where('window_date', $today);
+        }])->orderBy('attendance_open_time')->get();
 
         return response()->json(['data' => $events]);
     }
@@ -159,7 +159,8 @@ class InstitutionalEventController extends Controller
             'title' => 'required|string|max:255',
             'event_category_id' => 'nullable|integer|exists:attendance_event_categories,id',
             'venue_id' => 'nullable|integer|exists:attendance_venues,id',
-            'organizer_id' => 'required|integer',
+            'organizer_id' => 'nullable|integer',
+            'organizing_unit_type' => 'nullable|string|max:50',
             'start_date' => 'required|date',
             'end_date' => 'nullable|date|after_or_equal:start_date',
             'attendance_open_time' => 'required|regex:/^\d{2}:\d{2}(:\d{2})?$/',
@@ -178,6 +179,16 @@ class InstitutionalEventController extends Controller
             'target_audience.*.target_id' => 'nullable|integer',
             'terminal_ids' => 'nullable|array',
             'terminal_ids.*' => 'integer|exists:attendance_terminals,id',
+            'windows' => 'nullable|array',
+            'windows.*.date' => 'required_with:windows|date',
+            'windows.*.attendance_open_time' => 'required_with:windows|regex:/^\d{2}:\d{2}(:\d{2})?$/',
+            'windows.*.attendance_close_time' => 'required_with:windows|regex:/^\d{2}:\d{2}(:\d{2})?$/',
+            'windows.*.grace_period_minutes' => 'nullable|integer|min:0',
+            'windows.*.clock_out_open_time' => 'nullable|regex:/^\d{2}:\d{2}(:\d{2})?$/',
+            'windows.*.clock_out_close_time' => 'nullable|regex:/^\d{2}:\d{2}(:\d{2})?$/',
+            'penalty_ids' => 'nullable|array',
+            'penalty_ids.*' => 'integer|exists:attendance_penalty_schedule,id',
+            'penalty_applies_to' => 'nullable|string|in:absence,late',
         ]);
 
         if ($validator->fails()) {
@@ -187,8 +198,29 @@ class InstitutionalEventController extends Controller
         try {
             $data = $validator->validated();
             $terminalIds = $data['terminal_ids'] ?? [];
-            unset($data['terminal_ids']);
+            $windowsData = $data['windows'] ?? null;
+            unset($data['terminal_ids'], $data['windows']);
+            $data['is_active'] = $data['is_active'] ?? true;
             $event = AttendanceInstitutionalEvent::create($data);
+
+            // Generate per-day windows
+            if ($windowsData) {
+                // Use explicitly provided windows
+                foreach ($windowsData as $w) {
+                    AttendanceEventWindow::create([
+                        'institutional_event_id' => $event->id,
+                        'window_date' => $w['date'],
+                        'attendance_open_time' => $w['attendance_open_time'],
+                        'attendance_close_time' => $w['attendance_close_time'],
+                        'grace_period_minutes' => $w['grace_period_minutes'] ?? $event->grace_period_minutes ?? 0,
+                        'clock_out_open_time' => $w['clock_out_open_time'] ?? null,
+                        'clock_out_close_time' => $w['clock_out_close_time'] ?? null,
+                    ]);
+                }
+            } else {
+                // Auto-generate: one window per day from start_date to end_date using event-level times
+                $this->generateEventWindows($event);
+            }
 
             if ($request->has('target_audience')) {
                 $event->targetGroups()->delete();
@@ -201,11 +233,29 @@ class InstitutionalEventController extends Controller
                 }
             }
 
-            if (!empty($terminalIds)) {
+            if (! empty($terminalIds)) {
                 $event->assignedTerminals()->sync($terminalIds);
             }
 
-            $event->load(['eventCategory', 'venue', 'targetGroups', 'assignedTerminals']);
+            if ($request->has('penalty_ids') && is_array($request->penalty_ids)) {
+                $appliesTo = $request->input('penalty_applies_to', 'absence');
+                foreach ($request->penalty_ids as $penaltyId) {
+                    AttendanceEventPenaltyAssignment::create([
+                        'institutional_event_id' => $event->id,
+                        'penalty_id' => $penaltyId,
+                        'applies_to' => $appliesTo,
+                    ]);
+                }
+            }
+
+            // Auto-enroll participants from target groups so isParticipantInEvent() works at scan time
+            try {
+                app(EventParticipantEnrollmentService::class)->enrollFromTargetGroups($event);
+            } catch (\Exception $e) {
+                Log::warning("Auto-enrollment failed for event {$event->id}: ".$e->getMessage());
+            }
+
+            $event->load(['eventCategory', 'venue', 'targetGroups', 'assignedTerminals', 'windows']);
             $event->loadCount('participants');
 
             return response()->json(['data' => $event, 'message' => 'Event created successfully.'], 201);
@@ -217,9 +267,9 @@ class InstitutionalEventController extends Controller
     public function show(Request $request, $id): JsonResponse
     {
         $includes = $this->parseIncludes($request, ['eventCategory', 'venue', 'participants', 'targetGroups', 'assignedTerminals']);
-        $event = AttendanceInstitutionalEvent::with($includes)->withCount('participants')->find($id);
+        $event = AttendanceInstitutionalEvent::with(array_merge($includes, ['windows', 'penaltyAssignments']))->withCount('participants')->find($id);
 
-        if (!$event) {
+        if (! $event) {
             return response()->json(['message' => 'Event not found.'], 404);
         }
 
@@ -246,7 +296,7 @@ class InstitutionalEventController extends Controller
     {
         $event = AttendanceInstitutionalEvent::find($id);
 
-        if (!$event) {
+        if (! $event) {
             return response()->json(['message' => 'Event not found.'], 404);
         }
 
@@ -254,7 +304,8 @@ class InstitutionalEventController extends Controller
             'title' => 'sometimes|required|string|max:255',
             'event_category_id' => 'nullable|integer|exists:attendance_event_categories,id',
             'venue_id' => 'nullable|integer|exists:attendance_venues,id',
-            'organizer_id' => 'sometimes|required|integer',
+            'organizer_id' => 'sometimes|nullable|integer',
+            'organizing_unit_type' => 'nullable|string|max:50',
             'start_date' => 'sometimes|required|date',
             'end_date' => 'nullable|date|after_or_equal:start_date',
             'attendance_open_time' => 'sometimes|required|regex:/^\d{2}:\d{2}(:\d{2})?$/',
@@ -272,6 +323,9 @@ class InstitutionalEventController extends Controller
             'target_audience.*.target_id' => 'nullable|integer',
             'terminal_ids' => 'nullable|array',
             'terminal_ids.*' => 'integer|exists:attendance_terminals,id',
+            'penalty_ids' => 'nullable|array',
+            'penalty_ids.*' => 'integer|exists:attendance_penalty_schedule,id',
+            'penalty_applies_to' => 'nullable|string|in:absence,late',
         ]);
 
         if ($validator->fails()) {
@@ -282,10 +336,13 @@ class InstitutionalEventController extends Controller
             $data = $validator->validated();
             $terminalIds = $data['terminal_ids'] ?? [];
             unset($data['terminal_ids']);
+            $windowsData = $data['windows'] ?? null;
+            unset($data['windows']);
             $event->update($data);
 
             if ($request->has('target_audience')) {
                 $event->targetGroups()->delete();
+                AttendanceEventParticipant::where('institutional_event_id', $event->id)->delete();
                 foreach ($request->target_audience as $ta) {
                     AttendanceEventTargetGroup::create([
                         'institutional_event_id' => $event->id,
@@ -293,13 +350,51 @@ class InstitutionalEventController extends Controller
                         'target_id' => $ta['target_id'] ?? null,
                     ]);
                 }
+                try {
+                    app(EventParticipantEnrollmentService::class)->enrollFromTargetGroups($event);
+                } catch (\Exception $e) {
+                    Log::warning("Auto-enrollment failed on update for event {$event->id}: ".$e->getMessage());
+                }
             }
 
             if ($request->has('terminal_ids')) {
                 $event->assignedTerminals()->sync($terminalIds);
             }
 
-            $event->load(['eventCategory', 'venue', 'targetGroups', 'assignedTerminals']);
+            if ($request->has('penalty_ids') && is_array($request->penalty_ids)) {
+                $event->penaltyAssignments()->delete();
+                $appliesTo = $request->input('penalty_applies_to', 'absence');
+                foreach ($request->penalty_ids as $penaltyId) {
+                    AttendanceEventPenaltyAssignment::create([
+                        'institutional_event_id' => $event->id,
+                        'penalty_id' => $penaltyId,
+                        'applies_to' => $appliesTo,
+                    ]);
+                }
+            }
+
+            // If dates or time settings changed, regenerate windows
+            $dateOrTimeChanged = $request->hasAny(['start_date', 'end_date', 'attendance_open_time', 'attendance_close_time', 'clock_out_open_time', 'clock_out_close_time', 'grace_period_minutes']);
+            if ($dateOrTimeChanged || ! empty($windowsData)) {
+                $event->windows()->delete();
+                if (! empty($windowsData)) {
+                    foreach ($windowsData as $w) {
+                        AttendanceEventWindow::create([
+                            'institutional_event_id' => $event->id,
+                            'window_date' => $w['date'],
+                            'attendance_open_time' => $w['attendance_open_time'],
+                            'attendance_close_time' => $w['attendance_close_time'],
+                            'grace_period_minutes' => $w['grace_period_minutes'] ?? 0,
+                            'clock_out_open_time' => $w['clock_out_open_time'] ?? null,
+                            'clock_out_close_time' => $w['clock_out_close_time'] ?? null,
+                        ]);
+                    }
+                } else {
+                    $this->generateEventWindows($event);
+                }
+            }
+
+            $event->load(['eventCategory', 'venue', 'targetGroups', 'assignedTerminals', 'windows']);
             $event->loadCount('participants');
 
             return response()->json(['data' => $event, 'message' => 'Event updated successfully.']);
@@ -311,17 +406,17 @@ class InstitutionalEventController extends Controller
     public function attendanceReport(Request $request, $id): JsonResponse
     {
         $event = AttendanceInstitutionalEvent::with(['targetGroups', 'venue', 'assignedTerminals'])->find($id);
-        if (!$event) {
+        if (! $event) {
             return response()->json(['message' => 'Event not found.'], 404);
         }
 
         $service = app(AttendanceEventService::class);
         $report = $service->buildAttendanceReport($event);
 
-        $targetAudienceLabels = $event->targetGroups->map(fn($g) => [
+        $targetAudienceLabels = $event->targetGroups->map(fn ($g) => [
             'target_type' => $g->target_type,
             'target_id' => $g->target_id,
-            'label' => str_replace('_', ' ', ucwords($g->target_type, '_')) . ($g->target_id ? " #{$g->target_id}" : ''),
+            'label' => str_replace('_', ' ', ucwords($g->target_type, '_')).($g->target_id ? " #{$g->target_id}" : ''),
         ]);
 
         $page = $request->integer('page', 1);
@@ -335,6 +430,7 @@ class InstitutionalEventController extends Controller
         if ($search) {
             $allItems = $allItems->filter(function ($item) use ($service, $search) {
                 $info = $service->resolveParticipantInfo($item['participant_id'], $item['participant_type']);
+
                 return str_contains(strtolower($info['name']), strtolower($search))
                     || str_contains((string) $item['participant_id'], $search)
                     || str_contains(strtolower($info['department'] ?? ''), strtolower($search));
@@ -351,7 +447,7 @@ class InstitutionalEventController extends Controller
 
         $total = $allItems->count();
         $paginated = $allItems->forPage($page, $perPage)->values();
-        $paginated = $paginated->map(fn($item) => array_merge(
+        $paginated = $paginated->map(fn ($item) => array_merge(
             $item,
             $service->resolveParticipantInfo($item['participant_id'], $item['participant_type'])
         ));
@@ -366,7 +462,7 @@ class InstitutionalEventController extends Controller
                     'start_date' => $event->start_date,
                     'end_date' => $event->end_date,
                     'venue_name' => $event->venue?->name,
-                    'assigned_terminals' => $event->assignedTerminals->map(fn($t) => [
+                    'assigned_terminals' => $event->assignedTerminals->map(fn ($t) => [
                         'id' => $t->id,
                         'device_id' => $t->device_id,
                         'name' => $t->device_id,
@@ -396,7 +492,7 @@ class InstitutionalEventController extends Controller
     {
         $event = AttendanceInstitutionalEvent::find($id);
 
-        if (!$event) {
+        if (! $event) {
             return response()->json(['message' => 'Event not found.'], 404);
         }
 
@@ -413,6 +509,7 @@ class InstitutionalEventController extends Controller
     {
         $model = AttendanceInstitutionalEvent::withTrashed()->findOrFail($id);
         $model->restore();
+
         return response()->json(['message' => 'Restored successfully.']);
     }
 
@@ -420,13 +517,14 @@ class InstitutionalEventController extends Controller
     {
         $model = AttendanceInstitutionalEvent::withTrashed()->findOrFail($id);
         $model->forceDelete();
+
         return response()->json(['message' => 'Permanently deleted.']);
     }
 
     public function exportAttendance(Request $request, $id)
     {
         $event = AttendanceInstitutionalEvent::with(['targetGroups', 'venue'])->find($id);
-        if (!$event) {
+        if (! $event) {
             return response()->json(['message' => 'Event not found.'], 404);
         }
 
@@ -448,6 +546,7 @@ class InstitutionalEventController extends Controller
 
         $rows = $breakdown->map(function ($item) use ($service) {
             $info = $service->resolveParticipantInfo($item['participant_id'], $item['participant_type']);
+
             return [
                 'Participant ID' => $item['participant_id'],
                 'Name' => $info['name'],
@@ -460,13 +559,13 @@ class InstitutionalEventController extends Controller
             ];
         });
 
-        $filename = 'attendance-' . str_replace(' ', '-', $event->title) . '-' . $event->start_date->format('Y-m-d');
+        $filename = 'attendance-'.str_replace(' ', '-', $event->title).'-'.$event->start_date->format('Y-m-d');
 
         return match ($format) {
-            'csv' => $this->exportCsv($rows, $filename . '.csv'),
-            'xlsx' => $this->exportXlsx($rows, $filename . '.xlsx', $event, $report),
-            'pdf' => $this->exportPdf($rows, $filename . '.pdf', $event, $report),
-            default => $this->exportCsv($rows, $filename . '.csv'),
+            'csv' => $this->exportCsv($rows, $filename.'.csv'),
+            'xlsx' => $this->exportXlsx($rows, $filename.'.xlsx', $event, $report),
+            'pdf' => $this->exportPdf($rows, $filename.'.pdf', $event, $report),
+            default => $this->exportCsv($rows, $filename.'.csv'),
         };
     }
 
@@ -506,7 +605,7 @@ class InstitutionalEventController extends Controller
     {
         $html = $this->buildExportHtml($rows, $event, $report);
 
-        $pdf = new \Dompdf\Dompdf();
+        $pdf = new Dompdf;
         $pdf->loadHtml($html);
         $pdf->setPaper('A4', 'landscape');
         $pdf->render();
@@ -527,7 +626,7 @@ class InstitutionalEventController extends Controller
         foreach ($rows as $row) {
             $rowsHtml .= '<tr>';
             foreach ($row as $cell) {
-                $rowsHtml .= '<td>' . htmlspecialchars($cell) . '</td>';
+                $rowsHtml .= '<td>'.htmlspecialchars($cell).'</td>';
             }
             $rowsHtml .= '</tr>';
         }
@@ -567,14 +666,88 @@ tr:nth-child(even) { background: #f7fafc; }
 HTML;
     }
 
+    public function toggleStatus(Request $request, $id): JsonResponse
+    {
+        $event = AttendanceInstitutionalEvent::find($id);
+        if (! $event) {
+            return response()->json(['message' => 'Event not found.'], 404);
+        }
+
+        $validTransitions = [
+            'draft' => ['active'],
+            'active' => ['completed', 'draft'],
+            'completed' => ['draft', 'active'],
+        ];
+
+        $request->validate([
+            'status' => 'required|string|in:draft,active,completed',
+        ]);
+
+        $newStatus = $request->status;
+        $allowed = $validTransitions[$event->status] ?? [];
+
+        if (! in_array($newStatus, $allowed) && $event->status !== $newStatus) {
+            return response()->json([
+                'message' => "Cannot transition from '{$event->status}' to '{$newStatus}'. Allowed: ".($allowed ? implode(', ', $allowed) : 'none'),
+            ], 422);
+        }
+
+        $updateData = ['status' => $newStatus];
+        if ($newStatus === 'active') {
+            $updateData['is_active'] = true;
+        }
+        $event->update($updateData);
+
+        if ($newStatus === 'active') {
+            $enrollmentService = app(EventParticipantEnrollmentService::class);
+            if ($event->targetGroups()->exists()) {
+                $enrollmentService->enrollFromTargetGroups($event);
+            }
+        }
+
+        if ($newStatus === 'completed') {
+            $lifecycleService = app(EventLifecycleService::class);
+            $lifecycleService->closeEvent($event);
+        }
+
+        return response()->json([
+            'message' => "Event status changed to '{$newStatus}'.",
+            'event' => $event->fresh(),
+        ]);
+    }
+
     private function parseIncludes(Request $request, array $allowed): array
     {
-        if (!$request->filled('include')) {
+        if (! $request->filled('include')) {
             return [];
         }
 
         $includes = explode(',', $request->include);
 
         return array_intersect($includes, $allowed);
+    }
+
+    /**
+     * Auto-generate per-day attendance windows from event-level time settings.
+     * One window per day from start_date to end_date.
+     */
+    private function generateEventWindows(AttendanceInstitutionalEvent $event): void
+    {
+        $start = Carbon::parse($event->start_date);
+        $end = $event->end_date ? Carbon::parse($event->end_date) : $start->copy();
+
+        $current = $start->copy();
+        while ($current->lte($end)) {
+            AttendanceEventWindow::create([
+                'institutional_event_id' => $event->id,
+                'window_date' => $current->format('Y-m-d'),
+                'attendance_open_time' => $event->attendance_open_time,
+                'attendance_close_time' => $event->attendance_close_time,
+                'grace_period_minutes' => $event->grace_period_minutes ?? 0,
+                'clock_out_open_time' => $event->clock_out_open_time ?? null,
+                'clock_out_close_time' => $event->clock_out_close_time ?? null,
+            ]);
+            $current->addDay();
+        }
     }
 }

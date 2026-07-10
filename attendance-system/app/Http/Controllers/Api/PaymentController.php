@@ -27,7 +27,9 @@ class PaymentController extends Controller
             'email' => 'required|email',
         ]);
 
-        if ($validator->fails()) return response()->json(['errors' => $validator->errors()], 422);
+        if ($validator->fails()) {
+            return response()->json(['errors' => $validator->errors()], 422);
+        }
 
         try {
             $result = $this->paymentService->initializeTransaction(
@@ -46,10 +48,13 @@ class PaymentController extends Controller
     public function verify(Request $request): JsonResponse
     {
         $validator = Validator::make($request->all(), ['reference' => 'required|string']);
-        if ($validator->fails()) return response()->json(['errors' => $validator->errors()], 422);
+        if ($validator->fails()) {
+            return response()->json(['errors' => $validator->errors()], 422);
+        }
 
         try {
             $result = $this->paymentService->verifyTransaction($request->reference);
+
             return response()->json(['data' => $result]);
         } catch (\Exception $e) {
             return response()->json(['message' => $e->getMessage()], 500);
@@ -67,6 +72,7 @@ class PaymentController extends Controller
 
         try {
             $this->paymentService->handleWebhook($request->all());
+
             return response()->json(['message' => 'Webhook processed.']);
         } catch (\Exception $e) {
             return response()->json(['message' => 'Webhook processing failed.', 'error' => $e->getMessage()], 500);
@@ -77,6 +83,7 @@ class PaymentController extends Controller
     {
         try {
             $banks = $this->paymentService->listBanks();
+
             return response()->json(['data' => $banks]);
         } catch (\Exception $e) {
             return response()->json(['message' => $e->getMessage()], 500);
@@ -89,10 +96,13 @@ class PaymentController extends Controller
             'account_number' => 'required|string|size:10',
             'bank_code' => 'required|string',
         ]);
-        if ($validator->fails()) return response()->json(['errors' => $validator->errors()], 422);
+        if ($validator->fails()) {
+            return response()->json(['errors' => $validator->errors()], 422);
+        }
 
         try {
             $result = $this->paymentService->resolveAccountNumber($request->account_number, $request->bank_code);
+
             return response()->json(['data' => $result]);
         } catch (\Exception $e) {
             return response()->json(['message' => $e->getMessage()], 500);

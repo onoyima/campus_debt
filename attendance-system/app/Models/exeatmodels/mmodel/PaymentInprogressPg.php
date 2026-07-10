@@ -9,7 +9,6 @@ class PaymentInprogressPg extends Model
 {
     use HasFactory;
 
-
     protected $fillable = [
         'user_id',
         'student_id',
@@ -22,5 +21,4 @@ class PaymentInprogressPg extends Model
     {
         return $this->belongsTo(VunaTuitionFeePg::class);
     }
-
 }

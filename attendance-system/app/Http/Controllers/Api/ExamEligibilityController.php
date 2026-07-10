@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Attendance\AttendanceExamEligibility;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Validator;
 
 class ExamEligibilityController extends Controller
 {
@@ -47,7 +48,7 @@ class ExamEligibilityController extends Controller
         $includes = $this->parseIncludes($request, ['eligibilityStatus']);
         $eligibility = AttendanceExamEligibility::with($includes)->find($id);
 
-        if (!$eligibility) {
+        if (! $eligibility) {
             return response()->json(['message' => 'Exam eligibility record not found.'], 404);
         }
 
@@ -67,7 +68,7 @@ class ExamEligibilityController extends Controller
 
     public function evaluate(Request $request): JsonResponse
     {
-        $validator = \Illuminate\Support\Facades\Validator::make($request->all(), [
+        $validator = Validator::make($request->all(), [
             'student_id' => 'required|integer',
             'course_id' => 'required|integer',
             'academic_session_id' => 'required|integer',
@@ -104,6 +105,7 @@ class ExamEligibilityController extends Controller
     {
         $model = AttendanceExamEligibility::withTrashed()->findOrFail($id);
         $model->restore();
+
         return response()->json(['message' => 'Restored successfully.']);
     }
 
@@ -111,12 +113,13 @@ class ExamEligibilityController extends Controller
     {
         $model = AttendanceExamEligibility::withTrashed()->findOrFail($id);
         $model->forceDelete();
+
         return response()->json(['message' => 'Permanently deleted.']);
     }
 
     private function parseIncludes(Request $request, array $allowed): array
     {
-        if (!$request->filled('include')) {
+        if (! $request->filled('include')) {
             return [];
         }
 

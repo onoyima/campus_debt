@@ -5,7 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
-//A scholarship body is been define here.
+// A scholarship body is been define here.
 
 class ScholarshipBody extends Model
 {
@@ -26,5 +26,4 @@ class ScholarshipBody extends Model
     {
         return $this->hasMany(ScholarshipStudent::class);
     }
-
 }

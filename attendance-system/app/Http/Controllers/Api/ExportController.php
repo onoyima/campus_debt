@@ -8,12 +8,10 @@ use App\Models\Attendance\AttendanceExamEligibility;
 use App\Models\Attendance\AttendanceRecord;
 use App\Models\Attendance\AttendanceSession;
 use App\Models\Attendance\AttendanceStaffClocking;
-use App\Models\Attendance\AttendanceInstitutionalEvent;
-use App\Models\Attendance\AttendanceVenue;
 use App\Models\Attendance\AttendanceTerminal;
+use App\Models\Attendance\AttendanceVenue;
 use App\Services\ExportService;
 use Illuminate\Http\Request;
-use Illuminate\Support\Collection;
 
 class ExportController extends Controller
 {
@@ -43,7 +41,7 @@ class ExportController extends Controller
 
         $records = $query->limit($request->integer('limit', 1000))->get();
 
-        $data = $records->map(fn($r) => [
+        $data = $records->map(fn ($r) => [
             'id' => $r->id,
             'student_id' => $r->student_id,
             'session_title' => $r->session?->title ?? $r->session_id,
@@ -83,7 +81,7 @@ class ExportController extends Controller
 
         $records = $query->limit($request->integer('limit', 1000))->get();
 
-        $data = $records->map(fn($r) => [
+        $data = $records->map(fn ($r) => [
             'id' => $r->id,
             'title' => $r->title,
             'date' => $r->session_date,
@@ -118,7 +116,7 @@ class ExportController extends Controller
 
         $records = $query->limit($request->integer('limit', 1000))->get();
 
-        $data = $records->map(fn($r) => [
+        $data = $records->map(fn ($r) => [
             'id' => $r->id,
             'student_id' => $r->student_id,
             'amount' => number_format((float) $r->amount, 2),
@@ -153,10 +151,10 @@ class ExportController extends Controller
 
         $records = $query->limit($request->integer('limit', 1000))->get();
 
-        $data = $records->map(fn($r) => [
+        $data = $records->map(fn ($r) => [
             'student_id' => $r->student_id,
             'course_id' => $r->course_id,
-            'attendance_pct' => $r->attendance_percentage . '%',
+            'attendance_pct' => $r->attendance_percentage.'%',
             'status' => $r->eligibilityStatus?->display_name ?? $r->eligibility_status_id,
             'fees_cleared' => $r->school_fees_cleared ? 'Yes' : 'No',
             'debts_cleared' => $r->attendance_debts_cleared ? 'Yes' : 'No',
@@ -194,7 +192,7 @@ class ExportController extends Controller
 
         $records = $query->limit($request->integer('limit', 1000))->get();
 
-        $data = $records->map(fn($r) => [
+        $data = $records->map(fn ($r) => [
             'id' => $r->id,
             'staff_id' => $r->staff_id,
             'type' => $r->clock_type,
@@ -218,7 +216,7 @@ class ExportController extends Controller
     {
         $records = AttendanceVenue::limit($request->integer('limit', 1000))->get();
 
-        $data = $records->map(fn($r) => [
+        $data = $records->map(fn ($r) => [
             'id' => $r->id,
             'name' => $r->name,
             'code' => $r->code,
@@ -243,7 +241,7 @@ class ExportController extends Controller
     {
         $records = AttendanceTerminal::limit($request->integer('limit', 1000))->get();
 
-        $data = $records->map(fn($r) => [
+        $data = $records->map(fn ($r) => [
             'id' => $r->id,
             'device_id' => $r->device_id,
             'type' => $r->terminal_type,

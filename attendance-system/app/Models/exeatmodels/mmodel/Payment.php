@@ -14,6 +14,6 @@ class Payment extends Model
         'academic_session_id',
         'amount',
         'payment_type_id',
-        'transaction_code'
+        'transaction_code',
     ];
 }

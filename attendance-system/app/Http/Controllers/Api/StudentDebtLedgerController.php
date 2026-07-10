@@ -25,6 +25,7 @@ class StudentDebtLedgerController extends Controller
         }
 
         $records = $query->orderBy('created_at', 'desc')->paginate($perPage);
+
         return response()->json([
             'data' => $records->items(),
             'meta' => ['current_page' => $records->currentPage(), 'last_page' => $records->lastPage(), 'per_page' => $records->perPage(), 'total' => $records->total()],
@@ -34,7 +35,10 @@ class StudentDebtLedgerController extends Controller
     public function show(Request $request, $id): JsonResponse
     {
         $record = AttendanceStudentDebtLedger::with($this->parseIncludes($request, []))->find($id);
-        if (!$record) return response()->json(['message' => 'Student debt ledger not found.'], 404);
+        if (! $record) {
+            return response()->json(['message' => 'Student debt ledger not found.'], 404);
+        }
+
         return response()->json(['data' => $record]);
     }
 
@@ -45,7 +49,9 @@ class StudentDebtLedgerController extends Controller
             'academic_session_id' => 'required|integer',
         ]);
 
-        if ($validator->fails()) return response()->json(['errors' => $validator->errors()], 422);
+        if ($validator->fails()) {
+            return response()->json(['errors' => $validator->errors()], 422);
+        }
 
         try {
             $ledger = AttendanceStudentDebtLedger::updateOrCreate(
@@ -66,6 +72,7 @@ class StudentDebtLedgerController extends Controller
     {
         $model = AttendanceStudentDebtLedger::withTrashed()->findOrFail($id);
         $model->restore();
+
         return response()->json(['message' => 'Restored successfully.']);
     }
 
@@ -73,12 +80,16 @@ class StudentDebtLedgerController extends Controller
     {
         $model = AttendanceStudentDebtLedger::withTrashed()->findOrFail($id);
         $model->forceDelete();
+
         return response()->json(['message' => 'Permanently deleted.']);
     }
 
     private function parseIncludes(Request $request, array $allowed): array
     {
-        if (!$request->filled('include')) return [];
+        if (! $request->filled('include')) {
+            return [];
+        }
+
         return array_intersect(explode(',', $request->include), $allowed);
     }
 }

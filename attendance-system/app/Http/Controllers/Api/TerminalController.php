@@ -34,12 +34,12 @@ class TerminalController extends Controller
             $search = $request->search;
             $query->where(function ($q) use ($search) {
                 $q->where('device_id', 'like', "%{$search}%")
-                  ->orWhere('terminal_type', 'like', "%{$search}%")
-                  ->orWhere('os', 'like', "%{$search}%")
-                  ->orWhere('firmware_version', 'like', "%{$search}%")
-                  ->orWhere('ip_address', 'like', "%{$search}%")
-                  ->orWhere('serial_number', 'like', "%{$search}%")
-                  ->orWhere('device_model', 'like', "%{$search}%");
+                    ->orWhere('terminal_type', 'like', "%{$search}%")
+                    ->orWhere('os', 'like', "%{$search}%")
+                    ->orWhere('firmware_version', 'like', "%{$search}%")
+                    ->orWhere('ip_address', 'like', "%{$search}%")
+                    ->orWhere('serial_number', 'like', "%{$search}%")
+                    ->orWhere('device_model', 'like', "%{$search}%");
             });
         }
 
@@ -106,7 +106,7 @@ class TerminalController extends Controller
         $includes = $this->parseIncludes($request, ['venue']);
         $terminal = AttendanceTerminal::with($includes)->find($id);
 
-        if (!$terminal) {
+        if (! $terminal) {
             return response()->json(['message' => 'Terminal not found.'], 404);
         }
 
@@ -117,13 +117,13 @@ class TerminalController extends Controller
     {
         $terminal = AttendanceTerminal::find($id);
 
-        if (!$terminal) {
+        if (! $terminal) {
             return response()->json(['message' => 'Terminal not found.'], 404);
         }
 
         $validator = Validator::make($request->all(), [
             'venue_id' => 'sometimes|required|integer|exists:attendance_venues,id',
-            'device_id' => 'sometimes|required|string|max:255|unique:attendance_terminals,device_id,' . $id,
+            'device_id' => 'sometimes|required|string|max:255|unique:attendance_terminals,device_id,'.$id,
             'terminal_type' => 'sometimes|required|string|max:50',
             'is_active' => 'boolean',
             'os' => 'nullable|string|max:100',
@@ -150,7 +150,7 @@ class TerminalController extends Controller
     {
         $terminal = AttendanceTerminal::find($id);
 
-        if (!$terminal) {
+        if (! $terminal) {
             return response()->json(['message' => 'Terminal not found.'], 404);
         }
 
@@ -167,6 +167,7 @@ class TerminalController extends Controller
     {
         $model = AttendanceTerminal::withTrashed()->findOrFail($id);
         $model->restore();
+
         return response()->json(['message' => 'Restored successfully.']);
     }
 
@@ -174,12 +175,13 @@ class TerminalController extends Controller
     {
         $model = AttendanceTerminal::withTrashed()->findOrFail($id);
         $model->forceDelete();
+
         return response()->json(['message' => 'Permanently deleted.']);
     }
 
     private function parseIncludes(Request $request, array $allowed): array
     {
-        if (!$request->filled('include')) {
+        if (! $request->filled('include')) {
             return [];
         }
 

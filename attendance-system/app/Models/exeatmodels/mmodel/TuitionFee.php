@@ -41,7 +41,7 @@ class TuitionFee extends Model
         'payment_status',
         'is_room_taken',
         'transaction_time',
-        'verify'
+        'verify',
     ];
 
     public function user()
@@ -98,6 +98,4 @@ class TuitionFee extends Model
     {
         return $this->belongsTo(VuSession::class);
     }
-
 }
-

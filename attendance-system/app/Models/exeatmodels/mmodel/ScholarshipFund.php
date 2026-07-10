@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Model;
 class ScholarshipFund extends Model
 {
     use HasFactory;
+
     protected $fillable = [
         'scholarship_body_id',
         'amount',

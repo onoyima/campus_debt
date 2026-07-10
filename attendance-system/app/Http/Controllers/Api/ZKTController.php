@@ -8,6 +8,7 @@ use App\Services\TerminalClockingService;
 use App\Services\ZktService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 
 class ZKTController extends Controller
@@ -27,7 +28,7 @@ class ZKTController extends Controller
     {
         // Try staff first (staff_work_profiles.staff_no REGEXP ending with userId)
         try {
-            $profile = \Illuminate\Support\Facades\DB::connection('mysql_remote')
+            $profile = DB::connection('mysql_remote')
                 ->table('staff_work_profiles')
                 ->where('staff_work_profiles.staff_no', 'REGEXP', "{$userId}$")
                 ->select('staff_work_profiles.staff_id')
@@ -35,7 +36,7 @@ class ZKTController extends Controller
                 ->first();
 
             if ($profile) {
-                $staff = \Illuminate\Support\Facades\DB::connection('mysql_remote')
+                $staff = DB::connection('mysql_remote')
                     ->table('staff')
                     ->where('id', $profile->staff_id)
                     ->first(['id', 'fname', 'lname', 'email']);
@@ -58,7 +59,7 @@ class ZKTController extends Controller
 
         // Fallback: try student
         try {
-            $student = \Illuminate\Support\Facades\DB::connection('mysql_remote')
+            $student = DB::connection('mysql_remote')
                 ->table('students')
                 ->where('id', (int) $userId)
                 ->first(['id', 'fname', 'lname', 'email']);
@@ -95,7 +96,7 @@ class ZKTController extends Controller
     public function config(Request $request, $id): JsonResponse
     {
         $terminal = AttendanceTerminal::with('venue')->find($id);
-        if (!$terminal) {
+        if (! $terminal) {
             return response()->json(['message' => 'Terminal not found'], 404);
         }
 
@@ -149,6 +150,7 @@ class ZKTController extends Controller
         if ($terminal) {
             $terminal->update($updateData);
             $this->zktService->logActivity($terminal, 're-registered', 'info', 'Terminal re-registered');
+
             return response()->json(['message' => 'Terminal updated successfully', 'data' => $terminal]);
         }
 
@@ -156,6 +158,7 @@ class ZKTController extends Controller
         if ($terminal) {
             $terminal->update(array_merge($updateData, ['device_id' => $data['device_id']]));
             $this->zktService->logActivity($terminal, 're-registered', 'info', 'Terminal re-registered by serial');
+
             return response()->json(['message' => 'Terminal updated successfully', 'data' => $terminal]);
         }
 
@@ -245,16 +248,16 @@ class ZKTController extends Controller
     public function pullAttendance(Request $request, $id): JsonResponse
     {
         $terminal = AttendanceTerminal::find($id);
-        if (!$terminal) {
+        if (! $terminal) {
             return response()->json(['message' => 'Terminal not found'], 404);
         }
 
-        if (!$terminal->ip_address) {
+        if (! $terminal->ip_address) {
             return response()->json(['message' => 'Terminal has no IP address configured'], 400);
         }
 
         $records = $this->zktService->pullAttendance($terminal);
-        $this->zktService->logActivity($terminal, 'attendance_pulled', 'info', "Pulled " . count($records) . " records manually");
+        $this->zktService->logActivity($terminal, 'attendance_pulled', 'info', 'Pulled '.count($records).' records manually');
 
         return response()->json([
             'message' => 'Attendance pulled successfully',
@@ -269,7 +272,7 @@ class ZKTController extends Controller
     public function syncUsers(Request $request, $id): JsonResponse
     {
         $terminal = AttendanceTerminal::find($id);
-        if (!$terminal) {
+        if (! $terminal) {
             return response()->json(['message' => 'Terminal not found'], 404);
         }
 
@@ -289,12 +292,12 @@ class ZKTController extends Controller
     public function deviceInfo($id): JsonResponse
     {
         $terminal = AttendanceTerminal::find($id);
-        if (!$terminal) {
+        if (! $terminal) {
             return response()->json(['message' => 'Terminal not found'], 404);
         }
 
         $info = $this->zktService->getDeviceInfo($terminal);
-        if (!$info) {
+        if (! $info) {
             return response()->json(['message' => 'Failed to get device info. Check connection.'], 502);
         }
 
@@ -307,7 +310,7 @@ class ZKTController extends Controller
     public function restart(Request $request, $id): JsonResponse
     {
         $terminal = AttendanceTerminal::find($id);
-        if (!$terminal) {
+        if (! $terminal) {
             return response()->json(['message' => 'Terminal not found'], 404);
         }
 

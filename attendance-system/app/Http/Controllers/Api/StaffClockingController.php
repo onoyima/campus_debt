@@ -38,6 +38,7 @@ class StaffClockingController extends Controller
         }
 
         $records = $query->orderBy('timestamp', 'desc')->paginate($perPage);
+
         return response()->json([
             'data' => $records->items(),
             'meta' => ['current_page' => $records->currentPage(), 'last_page' => $records->lastPage(), 'per_page' => $records->perPage(), 'total' => $records->total()],
@@ -47,7 +48,10 @@ class StaffClockingController extends Controller
     public function show(Request $request, $id): JsonResponse
     {
         $record = AttendanceStaffClocking::with($this->parseIncludes($request, []))->find($id);
-        if (!$record) return response()->json(['message' => 'Staff clocking record not found.'], 404);
+        if (! $record) {
+            return response()->json(['message' => 'Staff clocking record not found.'], 404);
+        }
+
         return response()->json(['data' => $record]);
     }
 
@@ -61,7 +65,7 @@ class StaffClockingController extends Controller
         $staffClockings = AttendanceStaffClocking::where('staff_id', $user->id)
             ->orderBy('timestamp', 'desc')
             ->get()
-            ->map(fn($r) => [
+            ->map(fn ($r) => [
                 'id' => "staff_{$r->id}",
                 'clock_type' => $r->clock_type,
                 'clocked_at' => $r->clocked_at,
@@ -74,7 +78,7 @@ class StaffClockingController extends Controller
             ->where('participant_type', 'staff')
             ->orderBy('timestamp', 'desc')
             ->get()
-            ->map(fn($r) => [
+            ->map(fn ($r) => [
                 'id' => "event_{$r->id}",
                 'clock_type' => $r->clock_type,
                 'clocked_at' => $r->timestamp,
@@ -87,7 +91,7 @@ class StaffClockingController extends Controller
             ->where('participant_type', 'staff')
             ->orderBy('timestamp', 'desc')
             ->get()
-            ->map(fn($r) => [
+            ->map(fn ($r) => [
                 'id' => "unexpected_{$r->id}",
                 'clock_type' => 'in',
                 'clocked_at' => $r->timestamp,
@@ -147,7 +151,7 @@ class StaffClockingController extends Controller
             ->whereDate('timestamp', today())
             ->orderBy('timestamp', 'desc')
             ->get()
-            ->map(fn($c) => [
+            ->map(fn ($c) => [
                 'id' => "staff_{$c->id}",
                 'clock_type' => $c->clock_type,
                 'clocked_at' => $c->clocked_at,
@@ -161,7 +165,7 @@ class StaffClockingController extends Controller
             ->with('institutionalEvent')
             ->orderBy('timestamp', 'desc')
             ->get()
-            ->map(fn($ea) => [
+            ->map(fn ($ea) => [
                 'id' => "event_{$ea->id}",
                 'clock_type' => $ea->clock_type,
                 'clocked_at' => $ea->timestamp,
@@ -176,7 +180,7 @@ class StaffClockingController extends Controller
             ->orderBy('timestamp', 'desc')
             ->limit(10)
             ->get()
-            ->map(fn($ea) => [
+            ->map(fn ($ea) => [
                 'id' => $ea->id,
                 'event_id' => $ea->institutional_event_id,
                 'event_title' => $ea->institutionalEvent?->title ?? "Event #{$ea->institutional_event_id}",
@@ -189,7 +193,7 @@ class StaffClockingController extends Controller
         $upcomingEvents = AttendanceInstitutionalEvent::whereIn('id', $registeredEventIds)
             ->where(function ($q) {
                 $q->whereDate('start_date', '>=', today())
-                  ->orWhere('is_active', true);
+                    ->orWhere('is_active', true);
             })
             ->count();
 
@@ -200,7 +204,7 @@ class StaffClockingController extends Controller
             ->orderBy('start_date', 'desc')
             ->limit(20)
             ->get()
-            ->map(fn($e) => [
+            ->map(fn ($e) => [
                 'id' => $e->id,
                 'title' => $e->title,
                 'start_date' => $e->start_date,
@@ -214,7 +218,7 @@ class StaffClockingController extends Controller
             ->orderBy('start_date', 'desc')
             ->limit(20)
             ->get()
-            ->map(fn($e) => [
+            ->map(fn ($e) => [
                 'id' => $e->id,
                 'title' => $e->title,
                 'start_date' => $e->start_date,
@@ -263,6 +267,7 @@ class StaffClockingController extends Controller
             'attendance_method' => 'manual',
             'timestamp' => $now,
         ]);
+
         return response()->json(['data' => $record, 'message' => 'Clocked in successfully.'], 201);
     }
 
@@ -283,6 +288,7 @@ class StaffClockingController extends Controller
             'attendance_method' => 'manual',
             'timestamp' => $now,
         ]);
+
         return response()->json(['data' => $record, 'message' => 'Clocked out successfully.'], 201);
     }
 
@@ -295,12 +301,12 @@ class StaffClockingController extends Controller
             ->where(function ($q) use ($now) {
                 $q->where(function ($q2) use ($now) {
                     $q2->where('attendance_open_time', '<=', $now->format('H:i:s'))
-                       ->where('attendance_close_time', '>=', $now->format('H:i:s'));
+                        ->where('attendance_close_time', '>=', $now->format('H:i:s'));
                 })->orWhere(function ($q2) use ($now) {
                     $q2->whereNotNull('clock_out_open_time')
-                       ->whereNotNull('clock_out_close_time')
-                       ->where('clock_out_open_time', '<=', $now->format('H:i:s'))
-                       ->where('clock_out_close_time', '>=', $now->format('H:i:s'));
+                        ->whereNotNull('clock_out_close_time')
+                        ->where('clock_out_open_time', '<=', $now->format('H:i:s'))
+                        ->where('clock_out_close_time', '>=', $now->format('H:i:s'));
                 });
             })
             ->with('participants')
@@ -311,7 +317,7 @@ class StaffClockingController extends Controller
     private function routeToEvent(int $staffId, string $clockType, AttendanceInstitutionalEvent $event, $now): JsonResponse
     {
         $isParticipant = $event->participants->contains(
-            fn($p) => (int) $p->participant_id === $staffId
+            fn ($p) => (int) $p->participant_id === $staffId
         );
 
         $defaultStatus = AttendanceStatusType::where('code', 'present')->value('id');
@@ -328,6 +334,7 @@ class StaffClockingController extends Controller
                 'venue_id' => $event->venue_id,
                 'sync_status' => 'synced',
             ]);
+
             return response()->json([
                 'data' => $record,
                 'message' => 'Event attendance recorded as participant.',
@@ -346,6 +353,7 @@ class StaffClockingController extends Controller
             'venue_id' => $event->venue_id,
             'sync_status' => 'synced',
         ]);
+
         return response()->json([
             'data' => $record,
             'message' => 'Clocking recorded — you are not a registered participant for the active event.',
@@ -354,8 +362,11 @@ class StaffClockingController extends Controller
 
     private function expectedParticipantType(AttendanceInstitutionalEvent $event): string
     {
-        if ($event->participants->isEmpty()) return 'any';
+        if ($event->participants->isEmpty()) {
+            return 'any';
+        }
         $types = $event->participants->pluck('participant_type')->unique()->values();
+
         return $types->count() === 1 ? $types->first() : 'any';
     }
 
@@ -363,6 +374,7 @@ class StaffClockingController extends Controller
     {
         $model = AttendanceStaffClocking::withTrashed()->findOrFail($id);
         $model->restore();
+
         return response()->json(['message' => 'Restored successfully.']);
     }
 
@@ -370,12 +382,16 @@ class StaffClockingController extends Controller
     {
         $model = AttendanceStaffClocking::withTrashed()->findOrFail($id);
         $model->forceDelete();
+
         return response()->json(['message' => 'Permanently deleted.']);
     }
 
     private function parseIncludes(Request $request, array $allowed): array
     {
-        if (!$request->filled('include')) return [];
+        if (! $request->filled('include')) {
+            return [];
+        }
+
         return array_intersect(explode(',', $request->include), $allowed);
     }
 
@@ -383,7 +399,7 @@ class StaffClockingController extends Controller
     {
         $user = $request->user();
         $staffId = $user->id ?? $request->integer('staff_id');
-        if (!$staffId) {
+        if (! $staffId) {
             return response()->json(['message' => 'Staff ID required.'], 400);
         }
 
@@ -400,6 +416,7 @@ class StaffClockingController extends Controller
         $results = $events->map(function ($event) use ($service, $staffId) {
             $status = $service->getEventAttendanceStatus($event, 'staff', $staffId);
             $windows = $service->getWindows($event);
+
             return [
                 'id' => $event->id,
                 'title' => $event->title,

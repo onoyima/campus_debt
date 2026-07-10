@@ -75,7 +75,7 @@ class VenueController extends Controller
 
         $venue = AttendanceVenue::with($includes)->withCount('terminals')->find($id);
 
-        if (!$venue) {
+        if (! $venue) {
             return response()->json(['message' => 'Venue not found.'], 404);
         }
 
@@ -86,13 +86,13 @@ class VenueController extends Controller
     {
         $venue = AttendanceVenue::find($id);
 
-        if (!$venue) {
+        if (! $venue) {
             return response()->json(['message' => 'Venue not found.'], 404);
         }
 
         $validator = Validator::make($request->all(), [
             'name' => 'sometimes|required|string|max:255',
-            'code' => 'sometimes|required|string|max:50|unique:attendance_venues,code,' . $id,
+            'code' => 'sometimes|required|string|max:50|unique:attendance_venues,code,'.$id,
             'venue_type' => 'sometimes|required|string|max:50',
             'capacity' => 'nullable|integer|min:0',
             'is_active' => 'boolean',
@@ -119,7 +119,7 @@ class VenueController extends Controller
     {
         $venue = AttendanceVenue::find($id);
 
-        if (!$venue) {
+        if (! $venue) {
             return response()->json(['message' => 'Venue not found.'], 404);
         }
 
@@ -136,6 +136,7 @@ class VenueController extends Controller
     {
         $model = AttendanceVenue::withTrashed()->findOrFail($id);
         $model->restore();
+
         return response()->json(['message' => 'Restored successfully.']);
     }
 
@@ -143,12 +144,13 @@ class VenueController extends Controller
     {
         $model = AttendanceVenue::withTrashed()->findOrFail($id);
         $model->forceDelete();
+
         return response()->json(['message' => 'Permanently deleted.']);
     }
 
     private function parseIncludes(Request $request, array $allowed): array
     {
-        if (!$request->filled('include')) {
+        if (! $request->filled('include')) {
             return [];
         }
 

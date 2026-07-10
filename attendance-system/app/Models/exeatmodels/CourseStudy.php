@@ -22,7 +22,7 @@ class CourseStudy extends Model
         'phd',
         'pgd',
         'msc',
-        'p_masters'
+        'p_masters',
     ];
 
     public function dept_transfers()
@@ -37,7 +37,7 @@ class CourseStudy extends Model
 
     public function department()
     {
-        //return this->belongsTo('App\Models\User')
+        // return this->belongsTo('App\Models\User')
         return $this->belongsTo(Department::class);
     }
 
@@ -96,7 +96,7 @@ class CourseStudy extends Model
         return $this->hasMany(StudentAcademic::class);
     }
 
-        public function course_studies()
+    public function course_studies()
     {
         return $this->hasMany(CourseStudy::class);
     }

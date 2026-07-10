@@ -13,11 +13,11 @@ class CheckGhostAccess
     {
         $user = $request->user();
 
-        if (!$user) {
+        if (! $user) {
             return response()->json(['message' => 'Unauthenticated.'], 401);
         }
 
-        if (!GhostAdminService::isGhostAdmin($user->id)) {
+        if (! GhostAdminService::isGhostAdmin($user->id)) {
             return response()->json(['message' => 'Unauthorized access.'], 403);
         }
 

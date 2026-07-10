@@ -15,6 +15,8 @@ class AttendanceDebt extends Model
 
     protected $fillable = [
         'student_id',
+        'staff_id',
+        'participant_type',
         'institutional_event_id',
         'attendance_record_id',
         'penalty_id',
@@ -40,10 +42,6 @@ class AttendanceDebt extends Model
             'metadata' => 'array',
         ];
     }
-
-    // references remote students.id
-    // references remote staff.id
-    // references remote staff.id
 
     public function institutionalEvent()
     {

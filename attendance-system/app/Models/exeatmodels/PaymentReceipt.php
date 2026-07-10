@@ -4,8 +4,6 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use App\Models\Student;
-use App\Models\StudentExeatDebt;
 
 class PaymentReceipt extends Model
 {
@@ -23,7 +21,7 @@ class PaymentReceipt extends Model
         'paid_at',
         'receipt_number',
         'metadata',
-        'status'
+        'status',
     ];
 
     protected $casts = [

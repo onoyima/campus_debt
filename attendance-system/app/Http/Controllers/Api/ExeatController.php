@@ -3,9 +3,11 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Attendance\AttendanceDebt;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Validator;
 
 class ExeatController extends Controller
 {
@@ -34,9 +36,9 @@ class ExeatController extends Controller
             $search = $request->search;
             $query->where(function ($q) use ($search) {
                 $q->where('student_id', 'like', "%{$search}%")
-                  ->orWhere('reason', 'like', "%{$search}%")
-                  ->orWhere('destination', 'like', "%{$search}%")
-                  ->orWhere('status', 'like', "%{$search}%");
+                    ->orWhere('reason', 'like', "%{$search}%")
+                    ->orWhere('destination', 'like', "%{$search}%")
+                    ->orWhere('status', 'like', "%{$search}%");
             });
         }
 
@@ -57,7 +59,7 @@ class ExeatController extends Controller
     {
         $record = DB::connection('mysql_remote')->table('exeat_requests')->where('id', $id)->first();
 
-        if (!$record) {
+        if (! $record) {
             return response()->json(['message' => 'Exeat request not found.'], 404);
         }
 
@@ -77,7 +79,7 @@ class ExeatController extends Controller
         $studentId = $user->id;
 
         // Check for outstanding debts
-        $outstandingDebt = \App\Models\Attendance\AttendanceDebt::where('student_id', $studentId)
+        $outstandingDebt = AttendanceDebt::where('student_id', $studentId)
             ->whereIn('payment_status', ['unpaid', 'overdue'])
             ->exists();
 
@@ -89,7 +91,7 @@ class ExeatController extends Controller
             ], 403);
         }
 
-        $validator = \Illuminate\Support\Facades\Validator::make($request->all(), [
+        $validator = Validator::make($request->all(), [
             'student_id' => 'required|integer',
             'departure_date' => 'required|date',
             'return_date' => 'required|date|after_or_equal:departure_date',
@@ -103,7 +105,7 @@ class ExeatController extends Controller
         }
 
         try {
-            $id = \Illuminate\Support\Facades\DB::connection('mysql_remote')->table('exeat_requests')->insertGetId([
+            $id = DB::connection('mysql_remote')->table('exeat_requests')->insertGetId([
                 'student_id' => $request->student_id,
                 'departure_date' => $request->departure_date,
                 'return_date' => $request->return_date,
@@ -115,7 +117,7 @@ class ExeatController extends Controller
                 'updated_at' => now(),
             ]);
 
-            $record = \Illuminate\Support\Facades\DB::connection('mysql_remote')->table('exeat_requests')->where('id', $id)->first();
+            $record = DB::connection('mysql_remote')->table('exeat_requests')->where('id', $id)->first();
 
             return response()->json(['data' => $record, 'message' => 'Exeat request submitted successfully.'], 201);
         } catch (\Exception $e) {
@@ -125,7 +127,10 @@ class ExeatController extends Controller
 
     private function parseIncludes(Request $request, array $allowed): array
     {
-        if (!$request->filled('include')) return [];
+        if (! $request->filled('include')) {
+            return [];
+        }
+
         return array_intersect(explode(',', $request->include), $allowed);
     }
 }

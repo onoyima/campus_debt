@@ -10,12 +10,11 @@ class Level extends Model
     use HasFactory;
 
     protected $fillable = [
-        'level'
+        'level',
     ];
 
     public function course()
     {
         return $this->hasOne(Course::class);
     }
-
 }

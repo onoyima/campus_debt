@@ -4,23 +4,23 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Attendance\AttendanceDebt;
+use App\Models\Attendance\AttendanceEventParticipant;
 use App\Models\Attendance\AttendanceExamEligibility;
+use App\Models\Attendance\AttendanceInstitutionalEvent;
 use App\Models\Attendance\AttendanceRecord;
-use App\Models\Attendance\AttendanceStatusType;
 use App\Models\Attendance\AttendanceSession;
+use App\Models\Attendance\AttendanceStatusType;
+use App\Services\AttendanceEventService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use App\Models\Attendance\AttendanceEventParticipant;
-use App\Models\Attendance\AttendanceInstitutionalEvent;
-use App\Services\AttendanceEventService;
 
 class StudentDashboardController extends Controller
 {
     public function overview(Request $request): JsonResponse
     {
         $studentId = $request->integer('student_id');
-        if (!$studentId) {
+        if (! $studentId) {
             return response()->json(['message' => 'student_id is required.'], 422);
         }
 
@@ -42,7 +42,7 @@ class StudentDashboardController extends Controller
         // Fetch course names from remote
         $courseIds = $eligibilities->pluck('course_id')->unique()->filter()->values()->toArray();
         $courseMap = [];
-        if (!empty($courseIds)) {
+        if (! empty($courseIds)) {
             $remoteCourses = DB::connection('mysql_remote')
                 ->table('course_assigneds')
                 ->join('courses', 'course_assigneds.course_id', '=', 'courses.id')
@@ -69,6 +69,7 @@ class StudentDashboardController extends Controller
         // Build courses array
         $courses = $eligibilities->map(function ($e) use ($courseMap) {
             $rc = $courseMap[$e->course_id] ?? null;
+
             return [
                 'course_assigned_id' => $e->course_id,
                 'course_code' => $rc->course_code ?? null,
@@ -117,7 +118,7 @@ class StudentDashboardController extends Controller
                 'courses' => $courses,
                 'live_courses' => $liveCourses,
                 'eligibility_status' => $courses,
-                'attendance_percentage' => $courses->map(fn($c) => [
+                'attendance_percentage' => $courses->map(fn ($c) => [
                     'course_id' => $c['course_assigned_id'],
                     'percentage' => $c['attendance_percentage'],
                     'required' => $c['required_attendance_percentage'],
@@ -140,7 +141,7 @@ class StudentDashboardController extends Controller
                     ->where('vu_semester_id', $vuSemesterId)
                     ->pluck('id')
                     ->toArray();
-                if (!empty($caIds)) {
+                if (! empty($caIds)) {
                     $sessionQuery->whereIn('course_assigned_id', $caIds);
                 }
             }
@@ -256,7 +257,7 @@ class StudentDashboardController extends Controller
     public function myEvents(Request $request): JsonResponse
     {
         $studentId = $request->integer('student_id');
-        if (!$studentId) {
+        if (! $studentId) {
             return response()->json(['message' => 'Student ID required.'], 400);
         }
 
@@ -273,6 +274,7 @@ class StudentDashboardController extends Controller
         $results = $events->map(function ($event) use ($service, $studentId) {
             $status = $service->getEventAttendanceStatus($event, 'student', $studentId);
             $windows = $service->getWindows($event);
+
             return [
                 'id' => $event->id,
                 'title' => $event->title,

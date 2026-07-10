@@ -58,5 +58,4 @@ class AcceptanceFee extends Model
     {
         return $this->belongsTo(RrrAcceptanceFee::class);
     }
-
 }

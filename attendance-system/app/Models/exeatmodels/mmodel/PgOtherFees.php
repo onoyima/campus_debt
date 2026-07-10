@@ -12,5 +12,4 @@ class PgOtherFees extends Model
     protected $fillable = [
         'name',
     ];
-
 }
